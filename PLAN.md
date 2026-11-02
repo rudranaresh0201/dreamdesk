@@ -196,7 +196,9 @@ Headless Chrome through DevTools (`dreamdesk/spike_cdp.py`, in the sandbox, 2026
 | Cold start | 921 ms |
 | Press produced no change | 0 of 200 |
 
-This is a best case: a tiny page with no network, and each step only waits for the first change, not for the page to settle. Real web apps will be slower. Chrome runs with `--no-sandbox` because its own sandbox can't start inside ours, so bubblewrap is the only isolation layer for it.
+Web backend through the shared environment (`tests/check_web.py`, same page, in the sandbox, 2026-11-02), waiting until the page settles: step median 17.0 ms, p90 20.3, n=100, about 59 steps/s. Reset median 36.9 ms, n=5, with an identical start state each time.
+
+This is a best case: a tiny page with no network, and the spike's steps only wait for the first change. Real web apps will be slower. Chrome runs with `--no-sandbox` because its own sandbox can't start inside ours, so bubblewrap is the only isolation layer for it.
 
 ## Open checks
 - Read UIExplorer, CoAdapt-GUI, WildAWM and MAI-Gym in full; only abstracts so far.
