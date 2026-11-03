@@ -31,7 +31,10 @@ def sample_task(rng, want_test):
             return ComputeTask(a, op, b)
 
 
-def snapshot(elements):
+def snapshot(elements, detail=False):
+    """Rows of [path, role, name, text, pressable]. detail=True adds sorted states and the box."""
+    if detail:
+        return [[e.path, e.role, e.name, e.text, e.pressable, sorted(e.states), list(e.box)] for e in elements]
     return [[e.path, e.role, e.name, e.text, e.pressable] for e in elements]
 
 

@@ -12,12 +12,20 @@ from .core import Element
 Atspi.init()
 
 
+# States worth showing the agent. AT-SPI has many more; most never change.
+STATES = {"focused", "focusable", "checked", "pressed", "expanded", "collapsed", "selected", "editable",
+          "enabled", "sensitive", "visible", "showing", "active", "busy", "modal", "multi_line", "indeterminate"}
+
+
 class AtspiBackend:
-    def __init__(self, command, app_name, min_elements=20, start_timeout=20):
+    """detail=True also reads states and boxes. That costs extra calls per element, so it can be switched off."""
+
+    def __init__(self, command, app_name, min_elements=20, start_timeout=20, detail=True):
         self.command = command
         self.app_name = app_name.lower()
         self.min_elements = min_elements
         self.start_timeout = start_timeout
+        self.detail = detail
         self.proc = None
         self.app = None
 
@@ -71,7 +79,14 @@ class AtspiBackend:
             if action_iface:
                 names = [Atspi.Action.get_action_name(action_iface, i) for i in range(Atspi.Action.get_n_actions(action_iface))]
                 pressable = "click" in names
-            out.append(Element(path, role, name, text, pressable, node))
+            states, box = frozenset(), ()
+            if self.detail:
+                states = frozenset(s.value_nick for s in node.get_state_set().get_states()) & STATES
+                component = node.get_component_iface()
+                if component:
+                    r = Atspi.Component.get_extents(component, Atspi.CoordType.WINDOW)
+                    box = (r.x, r.y, r.width, r.height)
+            out.append(Element(path, role, name, text, pressable, node, states, box))
             for i in range(node.get_child_count()):
                 child = node.get_child_at_index(i)
                 if child:
@@ -85,3 +100,39 @@ class AtspiBackend:
             if Atspi.Action.get_action_name(iface, i) == "click":
                 Atspi.Action.do_action(iface, i)
                 return
+
+    def focus(self, element):
+        """Ask through accessibility first. GTK4 refuses for some widgets, so fall back to a real
+        click in the middle of the element, on the private display only."""
+        component = element.handle.get_component_iface()
+        if not component:
+            raise RuntimeError(f"{element.role} {element.name!r} can't take focus")
+        try:
+            if Atspi.Component.grab_focus(component):
+                return
+        except Exception:
+            pass
+        if self._is_focused(element):
+            return
+        r = Atspi.Component.get_extents(component, Atspi.CoordType.SCREEN)
+        if r.width <= 0 or r.height <= 0:
+            raise RuntimeError(f"{element.role} {element.name!r} has no box to click")
+        subprocess.run(["xdotool", "mousemove", str(r.x + r.width // 2), str(r.y + r.height // 2), "click", "1"], check=True, timeout=5)
+
+    @staticmethod
+    def _is_focused(element):
+        try:
+            return any(s.value_nick == "focused" for s in element.handle.get_state_set().get_states())
+        except Exception:
+            return False
+
+    def type_text(self, element, text):
+        """Insert text at the caret, like typing. Focuses the field first."""
+        editable = element.handle.get_editable_text_iface()
+        if not editable:
+            raise RuntimeError(f"{element.role} {element.name!r} doesn't accept text")
+        if not self._is_focused(element):
+            self.focus(element)
+        text_iface = element.handle.get_text_iface()
+        caret = Atspi.Text.get_caret_offset(text_iface) if text_iface else 0
+        Atspi.EditableText.insert_text(editable, max(caret, 0), text, len(text.encode("utf-8")))

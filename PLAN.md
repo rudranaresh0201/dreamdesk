@@ -5,6 +5,21 @@ Drop a small agent into an app it has never seen. With no instructions, no LLM a
 
 **Headline metric:** real steps and minutes of practice needed to reach a given success rate on an app kept out of training.
 
+## Problem statement
+**GUI agents are increasingly trained inside learned world models, but nobody measures how much those models fool them, and every current system needs huge pretrained models and data it didn't collect itself.**
+
+What the current work shows. Each point is from the sources below; some were read only as abstracts or summaries.
+
+| Gap | Evidence |
+|---|---|
+| **Imagined success is never checked against real success.** Rewards in the dream come from judges, not from the real app | WM-R1 scores simulated rollouts with an LLM judge. Imagine to Act's multi-step rollouts are judged by a vision-language model and not compared with real ones. DynaWeb uses self-assessed rewards with no uncertainty estimate |
+| **Dreams decay over longer rollouts, and the harm is known but not measured** | Imagine to Act reports fidelity dropping with rollout length. GUI-CC finds world models lose consistency over multiple steps. The mobile world-model study found imagined data helped only at first. DynaWeb caps rollouts at 5 steps |
+| **The world model is pretrained on fixed data, not built by the agent** | WM-R1 uses a frozen Code2World-8B. CUWM learns from 2,876 offline Office transitions. None explore a new app themselves to build its model |
+| **Everything needs large models and big GPUs** | WM-R1: 3–7B policies and an 8B world model on an H200. Imagine to Act: 4–9B image models. ScreenExplorer: 3B policy, about 26 hours on an A100 |
+| **Robotics already has a tested fix that hasn't been tried here** | RWM-U and MOPO-PPO use ensemble uncertainty to stop policies exploiting model errors on real robots |
+
+**So the open problem is:** can a small agent build its own world model of an app by exploring, practise inside it without being fooled, and show, measured in the real app, how much the dream overstates success and how much uncertainty fixes it?
+
 ## Research questions
 1. Can task-free exploration build a useful simulator of a real app in a few thousand real steps?
 2. How much does imagined success overstate real success, and do uncertainty penalties and truncated rollouts close the gap?
@@ -160,6 +175,16 @@ Environment check on the calculator (`tests/check_calculator.py`, 2026-11-02):
 | Random agent, tasks of the form `d + d` | 0/10, and it closed the app in 1 episode |
 
 Arm A, behaviour cloning on the calculator (`experiments/arm_a_results.md`, 2026-11-03): **gate passed**. Held-out success was a median of 98% (p10 96.4, p90 100) across 5 seeds, against 0% for a random player on the same 100 sums. It never recovered after a wrong press, and most failures were repeating the last digit. One failure was probably the environment checking success before the screen settled.
+
+Recorder v2 (2026-11-03, all in the sandbox): elements now carry states and boxes, and the agent can press, focus, and type a word from a small vocabulary. After a change, the environment waits for 250 ms with no further change (40 ms on web) before reading the result, which fixes the early read seen in Arm A.
+
+| Check | Result |
+|---|---|
+| Text editor (`tests/check_editor.py`) | Focuses the document, types "hello world", success read from the real app. Reads take 112 ms with states and boxes, against 82 ms without |
+| Web (`tests/check_web.py`) | Typing works and sets the focused state. Step median 54 ms, about 18 steps/s, slower than before because of the settle wait and state reading |
+| Calculator (`tests/check_calculator.py`) | Expert 25/25, start state identical, cheat still blocked. Step median 825 ms (p10 742, p90 1,019), up from 536; reset 976 ms, up from 563 |
+
+The settle wait costs about half again per desktop step. Whether 250 ms can be shortened without missing late updates is untested.
 
 Sandbox check (`tests/check_sandbox.py`, 2026-11-02): all escape checks held, with controls showing the probes detect access outside the sandbox. Blocked: real home and files, real drives, network, real session and system buses, real desktop display, real processes. The calculator completes a sum inside, and the file manager shows no drives or Unmount buttons.
 

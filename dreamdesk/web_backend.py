@@ -97,6 +97,22 @@ def _value(node, key):
     return str((node.get(key) or {}).get("value", ""))
 
 
+WEB_STATES = {"focused", "focusable", "checked", "pressed", "expanded", "selected", "editable", "disabled", "modal", "multiline"}
+
+
+def _states(node):
+    """DevTools properties -> state names like the desktop backend's."""
+    out = set()
+    for prop in node.get("properties", []):
+        name, value = prop.get("name"), (prop.get("value") or {}).get("value")
+        if name in WEB_STATES and value not in (False, "false", None, ""):
+            out.add({"multiline": "multi_line"}.get(name, name))
+    if "disabled" not in out:
+        out.add("enabled")
+    out.discard("disabled")
+    return frozenset(out)
+
+
 def to_elements(nodes):
     """Turn a DevTools tree into Elements, in document order. Ignored nodes are skipped but walked through."""
     by_id = {n["nodeId"]: n for n in nodes}
@@ -110,7 +126,8 @@ def to_elements(nodes):
         if visible:
             name = _value(node, "name")
             text = _value(node, "value") or (name if role in ("StaticText", "LabelText") else "")
-            out.append(Element(path, ROLES.get(role, role), name, text, role in PRESSABLE, node))
+            # Web boxes need a call per element; left empty until the playable dream needs them.
+            out.append(Element(path, ROLES.get(role, role), name, text, role in PRESSABLE, node, _states(node)))
         index = 0
         for child in node.get("childIds", []):
             if child in by_id:
@@ -122,8 +139,13 @@ def to_elements(nodes):
     return out
 
 
+# Pages settle in milliseconds, so wait for a much shorter quiet spell than desktop apps need.
+ENV_TIMING = {"change_timeout": 0.15, "settle": 0.01, "quiet": 0.04}
+
+
 class WebBackend:
-    """Reset reloads the page, so Chrome stays open between episodes. Call close() at the end."""
+    """Reset reloads the page, so Chrome stays open between episodes. Call close() at the end.
+    Use DeskEnv(backend, **ENV_TIMING)."""
 
     def __init__(self, url):
         self.url = url
@@ -153,3 +175,14 @@ class WebBackend:
 
     def press(self, element):
         self.chrome.press(element.handle)
+
+    def focus(self, element):
+        self.chrome.call("DOM.focus", backendNodeId=element.handle["backendDOMNodeId"])
+
+    def type_text(self, element, text):
+        """Focus the field, put the caret at the end, and type, so pages see real input events."""
+        self.focus(element)
+        obj = self.chrome.call("DOM.resolveNode", backendNodeId=element.handle["backendDOMNodeId"])["object"]["objectId"]
+        self.chrome.call("Runtime.callFunctionOn", objectId=obj,
+                         functionDeclaration="function(){if(this.setSelectionRange){const n=this.value.length;this.setSelectionRange(n,n)}}")
+        self.chrome.call("Input.insertText", text=text)

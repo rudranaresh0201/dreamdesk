@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from dreamdesk.core import DeskEnv, changed_elements
 from dreamdesk.spike_cdp import PAGE
-from dreamdesk.web_backend import WebBackend
+from dreamdesk.web_backend import ENV_TIMING, WebBackend
 
 
 class CountTask:
@@ -23,7 +23,7 @@ class CountTask:
 
 url = "data:text/html;base64," + base64.b64encode(PAGE.encode()).decode()
 backend = WebBackend(url)
-env = DeskEnv(backend, max_steps=15, change_timeout=0.15, settle=0.01)
+env = DeskEnv(backend, max_steps=15, words=("milk",), **ENV_TIMING)
 failed = []
 
 
@@ -48,6 +48,16 @@ names = [e.name for e in env.pressable()]
 check("Delete 1" in names, f"the new Delete button can be pressed ({names})")
 _, reward, done, _ = env.step(names.index("Add"))
 check(reward == 1.0 and done, "the second Add completes the task, checked from the page's real text")
+
+env.reset(task)
+box = next(e for e in env.elements if e.role == "text")
+check("editable" in box.states and "enabled" in box.states, f"the text box is editable and enabled ({sorted(box.states)})")
+typing = [a for a in env.actions() if a.verb == "type" and a.element.path == box.path]
+check(len(typing) == 1, "typing actions appear for the text box")
+if typing:
+    env.act(typing[0])
+    now = next(e for e in env.elements if e.path == box.path)
+    check(now.text == "milk" and "focused" in now.states, f"typing puts the word in the box and focuses it ({now.text!r}, {sorted(now.states)})")
 
 times = []
 for _ in range(5):
