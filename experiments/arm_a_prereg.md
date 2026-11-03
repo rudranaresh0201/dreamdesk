@@ -4,6 +4,11 @@ Written 2026-11-02, before any behaviour cloning model was fully trained or any 
 
 **Deviation, recorded when it happened:** the code smoke test, on partial data, printed one held-out number by accident: offline accuracy 0.51 on 47 presses, from a throwaway 30-epoch model trained on 56 episodes. Under the tuning rule below, that ends tuning. The configuration in this file is therefore frozen as written, with no tuning at all.
 
+**Deviations during the run, recorded when they happened:**
+- The laptop powered off during data collection, which ended at 1,547 episodes (17,050 steps, data check passed), not about 1,900.
+- The laptop powered off again during training. Seeds 1 to 4 had finished; seed 0 had not. Seed 0 was retrained from scratch with identical settings (`scripts/arm_a.sh --resume`), and the unfinished files are kept in `runs/arm_a/interrupted/`.
+- The laptop powered off a third time during real-app testing. Finished test runs were kept; the 3 unfinished ones (seed 1 train-side, seed 2 held-out and train-side) were set aside in `runs/arm_a/interrupted/` and rerun from their first task.
+
 ## Question
 Can a small policy, trained only by copying a scripted expert from the accessibility tree, finish calculator sums it never trained on, in the real app?
 

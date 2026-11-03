@@ -159,6 +159,8 @@ Environment check on the calculator (`tests/check_calculator.py`, 2026-11-02):
 | Typing the answer without the sum counts as success | No |
 | Random agent, tasks of the form `d + d` | 0/10, and it closed the app in 1 episode |
 
+Arm A, behaviour cloning on the calculator (`experiments/arm_a_results.md`, 2026-11-03): **gate passed**. Held-out success was a median of 98% (p10 96.4, p90 100) across 5 seeds, against 0% for a random player on the same 100 sums. It never recovered after a wrong press, and most failures were repeating the last digit. One failure was probably the environment checking success before the screen settled.
+
 Sandbox check (`tests/check_sandbox.py`, 2026-11-02): all escape checks held, with controls showing the probes detect access outside the sandbox. Blocked: real home and files, real drives, network, real session and system buses, real desktop display, real processes. The calculator completes a sum inside, and the file manager shows no drives or Unmount buttons.
 
 App survey inside the sandbox (`scripts/survey_apps.sh`, 2026-11-02), reads only, with collection running at the same time. "Starts" doesn't yet mean an agent can do useful work in it; pressing isn't tested yet.
