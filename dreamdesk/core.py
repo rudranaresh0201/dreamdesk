@@ -52,6 +52,7 @@ class Backend(Protocol):
     def press(self, element: Element) -> None: ...
     def focus(self, element: Element) -> None: ...
     def type_text(self, element: Element, text: str) -> None: ...
+    # Optional: can_type(element) -> bool, when an element says it's editable but refuses text.
 
 
 class Task(Protocol):
@@ -94,10 +95,12 @@ class DeskEnv:
         """Every allowed action now, in a fixed order: presses first, then focus and typing on text fields."""
         allowed = [e for e in self.elements if e.name not in self.blocked_names]
         out = [Action(e, "press") for e in allowed if e.pressable]
+        can_type = getattr(self.backend, "can_type", lambda e: True)
         for e in allowed:
             if e.editable:
                 out.append(Action(e, "focus"))
-                out.extend(Action(e, "type", w) for w in self.words)
+                if can_type(e):
+                    out.extend(Action(e, "type", w) for w in self.words)
         return out
 
     def reset(self, task):

@@ -126,6 +126,14 @@ class AtspiBackend:
         except Exception:
             return False
 
+    @staticmethod
+    def can_type(element):
+        """Some fields say they're editable but have no way to insert text (Files had one)."""
+        try:
+            return element.handle is not None and element.handle.get_editable_text_iface() is not None
+        except Exception:
+            return False
+
     def type_text(self, element, text):
         """Insert text at the caret, like typing. Focuses the field first."""
         editable = element.handle.get_editable_text_iface()
