@@ -206,13 +206,23 @@ def train(args):
     items = [(k, rng.choice(p.app.transitions["train"])) for k, p in enumerate(apps) for _ in p.app.transitions["train"]]
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    path = out / f"member_seed{args.seed}.pt"
+    total, step, first = None, 0, 0
+    if args.resume and path.exists():
+        # continue after the last finished epoch, with the same optimizer and random state
+        ck = torch.load(path, weights_only=False)
+        model.load_state_dict(ck["model"])
+        opt.load_state_dict(ck["optimizer"])
+        rng.setstate(ck["rng"])
+        torch.set_rng_state(ck["torch_rng"])
+        total, step, first = ck["total"], ck["step"], ck["epoch"] + 1
+        print(f"resuming seed {args.seed} after epoch {ck['epoch']}", flush=True)
     log = open(out / f"train_seed{args.seed}.log", "a")
-    total = None
-    step = 0
-    for epoch in range(args.epochs):
-        rng.shuffle(items)
+    for epoch in range(first, args.epochs):
+        order = items[:]  # shuffle a copy, so the order depends only on rng and resuming is exact
+        rng.shuffle(order)
         by_app = {}
-        for k, t in items:
+        for k, t in order:
             by_app.setdefault(k, []).append(t)
         batches = []
         for k, ts in by_app.items():
@@ -255,8 +265,11 @@ def train(args):
         print(json.dumps(msg), flush=True)
         log.write(json.dumps(msg) + "\n")
         log.flush()
-        torch.save({"model": model.state_dict(), "config": CONFIG, "roles": roles, "epoch": epoch, "seed": args.seed},
-                   out / f"member_seed{args.seed}.pt")
+        tmp = path.with_suffix(".tmp")  # write then rename, so a power cut never leaves half a file
+        torch.save({"model": model.state_dict(), "config": CONFIG, "roles": roles, "epoch": epoch, "seed": args.seed,
+                    "optimizer": opt.state_dict(), "rng": rng.getstate(), "torch_rng": torch.get_rng_state(),
+                    "step": step, "total": total}, tmp)
+        tmp.replace(path)
 
 
 class Neural:
@@ -319,6 +332,7 @@ def main():
     tr.add_argument("--epochs", type=int, default=CONFIG["epochs"])
     tr.add_argument("--threads", type=int, default=8)
     tr.add_argument("--limit", type=int, default=0, help="batches per epoch, for a speed check")
+    tr.add_argument("--resume", action="store_true", help="continue after the last saved epoch")
     ev = sub.add_parser("eval")
     ev.add_argument("--data", default="data/wm")
     ev.add_argument("--members", nargs="+", required=True)
