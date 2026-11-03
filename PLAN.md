@@ -124,7 +124,7 @@ Estimates at 12–15 hours a week. Every level ships something even if the next 
 |---|---|---|---|---|
 | 0 | Now | Finish calculator run, Arm A, read remaining papers | Pipeline works end to end; no paper does this exact study | Reproduce the paper and test what it left out |
 | 1 | 1–2 | Sandbox, recorder v2, app survey | **All escape tests pass**; at least 12 usable apps | Fewer apps; nothing runs outside the sandbox |
-| 2 | 3 | Explorers | Curious or Novelty beats Random on coverage in a majority of test apps | Use the best simple explorer and report it |
+| 2 | 3 | Explorers: Random and Novelty (`experiments/explore_prereg.md`). Curious moves to Stage 3, because it needs the world-model ensemble | Novelty beats Random on distinct screens in at least 6 of 10 apps | Use the best simple explorer and report it |
 | 3 (Level 1) | 4–5 | World model, playable dream | Beats Copy and Memo on unvisited transitions at horizon 5, and runs at least 100× real speed | Publish environment and exploration benchmark |
 | 4 (Level 2) | 6–7 | Goal agent, all dream arms | Results either way; Dream beating Graph on parametric tasks is the hoped result | Publish the exploitation or graph result |
 | 5 (Level 3) | 8–10 | 20–30 apps, template web apps, prior vs scratch | Prior needs fewer real steps than scratch on held-out apps, with intervals not overlapping | Paper stops at Level 2 |
