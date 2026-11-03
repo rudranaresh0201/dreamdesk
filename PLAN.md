@@ -124,7 +124,7 @@ Estimates at 12–15 hours a week. Every level ships something even if the next 
 |---|---|---|---|---|
 | 0 | Now | Finish calculator run, Arm A, read remaining papers | Pipeline works end to end; no paper does this exact study | Reproduce the paper and test what it left out |
 | 1 | 1–2 | Sandbox, recorder v2, app survey | **All escape tests pass**; at least 12 usable apps | Fewer apps; nothing runs outside the sandbox |
-| 2 | 3 | Explorers: Random and Novelty (`experiments/explore_prereg.md`). Curious moves to Stage 3, because it needs the world-model ensemble | Novelty beats Random on distinct screens in at least 6 of 10 apps | Use the best simple explorer and report it |
+| 2 | 3 | Explorers: Random and Novelty (`experiments/explore_prereg.md`). Curious moves to Stage 3, because it needs the world-model ensemble | Novelty beats Random on distinct screens in at least 6 of 10 apps. **Failed, 4 of 10** (`experiments/explore_results.md`) | Use the best simple explorer and report it. Neither was clearly best, so Stage 3 trains on all 100 runs |
 | 3 (Level 1) | 4–5 | World model, playable dream | Beats Copy and Memo on unvisited transitions at horizon 5, and runs at least 100× real speed | Publish environment and exploration benchmark |
 | 4 (Level 2) | 6–7 | Goal agent, all dream arms | Results either way; Dream beating Graph on parametric tasks is the hoped result | Publish the exploitation or graph result |
 | 5 (Level 3) | 8–10 | 20–30 apps, template web apps, prior vs scratch | Prior needs fewer real steps than scratch on held-out apps, with intervals not overlapping | Paper stops at Level 2 |
@@ -145,7 +145,7 @@ Estimates at 12–15 hours a week. Every level ships something even if the next 
 |---|---|
 | Someone publishes this first | The field moves weekly. Re-check before each gate, and post early |
 | Graph search matches the dream | Test parametric tasks; report it if it still wins |
-| Random explores as well as curiosity | Novelty and Random are baselines; use whatever wins |
+| Random explores as well as curiosity | Novelty and Random are baselines; use whatever wins. Stage 2 already found random as good as novelty on screens |
 | Transfer across apps doesn't appear | Per-app self-teaching still ships at Levels 1–2 |
 | Laptop too slow for many apps | Measure in the survey; cut slow apps such as LibreOffice |
 | Dream isn't much faster than reality | Stage 3 gate requires at least 100× native speed; report web separately |
@@ -226,6 +226,14 @@ Headless Chrome through DevTools (`dreamdesk/spike_cdp.py`, in the sandbox, 2026
 Web backend through the shared environment (`tests/check_web.py`, same page, in the sandbox, 2026-11-02), waiting until the page settles: step median 17.0 ms, p90 20.3, n=100, about 59 steps/s. Reset median 36.9 ms, n=5, with an identical start state each time.
 
 This is a best case: a tiny page with no network, and the spike's steps only wait for the first change. Real web apps will be slower. Chrome runs with `--no-sandbox` because its own sandbox can't start inside ours, so bubblewrap is the only isolation layer for it.
+
+### Stage 2: novelty vs random exploration
+100 runs, 10 apps × 2 explorers × 5 seeds × 500 steps, in the sandbox, 2026-11-03 to 04 (`experiments/explore_results.md`).
+- **Gate failed:** novelty's median count of distinct screens was higher than random's in 4 of 10 apps. It was lower in 3 and tied in 3, with seeds overlapping in every app.
+- **Novelty found more distinct transitions in 7 of 10 apps.** This was a secondary measure.
+- Disk-usage and font-viewer saturate in 500 steps.
+- Median step 884 ms.
+- Files had 365 typing errors, from typing into an unnamed field that refuses text. Fix this before Stage 3.
 
 ## Open checks
 - Read UIExplorer, CoAdapt-GUI, WildAWM and MAI-Gym in full; only abstracts so far.

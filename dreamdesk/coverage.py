@@ -75,16 +75,21 @@ def main():
         print(f"{app:14} {explorer:8} {seed:6} {r['steps']:5} {r['screens']:7} {r['discovered_elements']:8} {r['transitions']:11} {r['no_change_pct']:7} {r['errors']:6} {r['step_ms_median'] or 0:5}")
     by = defaultdict(lambda: defaultdict(list))
     for app, explorer, seed, r in rows:
-        by[app][explorer].append(r["screens"])
+        by[app][explorer].append(r)
     compared = {app: v for app, v in by.items() if v["novelty"] and v["random"]}
     if compared:
         print("\nMedian distinct screens per app, across seeds")
         wins = 0
         for app, v in sorted(compared.items()):
-            n, r = stats.median(v["novelty"]), stats.median(v["random"])
+            ns, rs = [r["screens"] for r in v["novelty"]], [r["screens"] for r in v["random"]]
+            n, r = stats.median(ns), stats.median(rs)
             wins += n > r
-            print(f"  {app:14} novelty {n:6.1f} ({len(v['novelty'])} seeds)   random {r:6.1f} ({len(v['random'])} seeds)")
+            every = "every novelty seed higher" if min(ns) > max(rs) else "every random seed higher" if min(rs) > max(ns) else "seeds overlap"
+            print(f"  {app:14} novelty {n:6.1f} ({len(ns)} seeds)   random {r:6.1f} ({len(rs)} seeds)   {every}")
         print(f"novelty's median beats random's in {wins} of {len(compared)} apps")
+        for key in ("discovered_elements", "transitions"):
+            w = sum(stats.median(r[key] for r in v["novelty"]) > stats.median(r[key] for r in v["random"]) for v in compared.values())
+            print(f"secondary, {key}: novelty's median higher in {w} of {len(compared)} apps")
 
 
 if __name__ == "__main__":
