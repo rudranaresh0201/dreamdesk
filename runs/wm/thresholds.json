@@ -1,0 +1,12 @@
+{
+ "vanish": 0.7,
+ "appear": 0.7,
+ "val_h1_mean": 0.7052,
+ "members": [
+  "runs/wm/member_seed0.pt",
+  "runs/wm/member_seed1.pt",
+  "runs/wm/member_seed2.pt",
+  "runs/wm/member_seed3.pt",
+  "runs/wm/member_seed4.pt"
+ ]
+}

@@ -72,10 +72,15 @@ Trained only on the agent's own task-free exploration (Stage 2), can a small neu
 - Val scores of the dev model and of members 0 and 1 (`runs/wm/val_check_2members.txt`). These beat Memo on unvisited horizon-5 items in all six apps that pass the 50-window bar on val. No test numbers of any model were seen.
 - Test-split data statistics without any model: tree sizes, change sizes, and the share of unvisited (screen, action) pairs.
 
+## Frozen thresholds (from `tune`, 2026-11-05 00:01)
+- Vanish 0.7, appear 0.7. Val mean horizon-1 delta F1 is 0.7052 (all items, apps equal).
+- Both values sit at the top edge of the pre-registered grid, so a wider grid might have chosen higher ones. The grid is kept as registered.
+- Full sweep: `runs/wm/tune.log`.
+
 ## Running the test
 1. `python3 -m dreamdesk.wm_report tune --members runs/wm/member_seed{0..4}.pt`
 2. Commit `runs/wm/thresholds.json`'s values in this file.
 3. `python3 -m dreamdesk.wm_report test --members runs/wm/member_seed{0..4}.pt`. It refuses to run if a test report already exists.
 
 ## Deviations
-None yet.
+- Commands run with the project's `.venv/bin/python` (it has torch) instead of `python3`. Nothing else changes.

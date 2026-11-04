@@ -1,0 +1,36 @@
+cached calculator
+cached characters
+cached clocks
+cached disk-usage
+cached files
+cached font-viewer
+cached image-viewer
+cached logs
+cached resources
+cached text-editor
+vanish 0.3 appear 0.3: 0.5258
+vanish 0.3 appear 0.4: 0.5670
+vanish 0.3 appear 0.5: 0.5933
+vanish 0.3 appear 0.6: 0.6092
+vanish 0.3 appear 0.7: 0.6155
+vanish 0.4 appear 0.3: 0.5477
+vanish 0.4 appear 0.4: 0.5913
+vanish 0.4 appear 0.5: 0.6202
+vanish 0.4 appear 0.6: 0.6380
+vanish 0.4 appear 0.7: 0.6464
+vanish 0.5 appear 0.3: 0.5641
+vanish 0.5 appear 0.4: 0.6131
+vanish 0.5 appear 0.5: 0.6502
+vanish 0.5 appear 0.6: 0.6697
+vanish 0.5 appear 0.7: 0.6791
+vanish 0.6 appear 0.3: 0.5725
+vanish 0.6 appear 0.4: 0.6233
+vanish 0.6 appear 0.5: 0.6624
+vanish 0.6 appear 0.6: 0.6824
+vanish 0.6 appear 0.7: 0.6927
+vanish 0.7 appear 0.3: 0.5781
+vanish 0.7 appear 0.4: 0.6308
+vanish 0.7 appear 0.5: 0.6726
+vanish 0.7 appear 0.6: 0.6936
+vanish 0.7 appear 0.7: 0.7052
+chosen: {'vanish': 0.7, 'appear': 0.7, 'val_h1_mean': 0.7052, 'members': ['runs/wm/member_seed0.pt', 'runs/wm/member_seed1.pt', 'runs/wm/member_seed2.pt', 'runs/wm/member_seed3.pt', 'runs/wm/member_seed4.pt']}
