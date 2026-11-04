@@ -107,7 +107,12 @@ class WorldModel(nn.Module):
         out = bag(idx[gather], offsets)
         return out.reshape(*ids.shape, -1)
 
-    def forward(self, f, screens, mask, targets, verbs, words, bank):
+    def bank_keys(self, f, bank):
+        """The appear head's keys for every bank element. Fixed once training is over, so it can be cached."""
+        e = self.embed(f, bank)
+        return self.key(e).view(len(bank), APPEAR_HEADS, e.shape[-1]), self.key_bias(e).squeeze(-1)
+
+    def forward(self, f, screens, mask, targets, verbs, words, bank, keys=None):
         """screens: B x N element ids (padded), mask: B x N true where real, targets: B (index into N),
         verbs: B, words: list of trigram lists, bank: K element ids. Returns vanish logits B x N, appear logits B x K."""
         x = self.embed(f, screens)
@@ -122,13 +127,12 @@ class WorldModel(nn.Module):
         h = self.encoder(torch.cat([a[:, None], x], 1), src_key_padding_mask=torch.cat([torch.zeros_like(mask[:, :1]), ~mask], 1))
         vanish = self.vanish(h[:, 1:]).squeeze(-1)
         q = self.query(torch.cat([h[:, 0], (h[:, 1:] * mask[..., None]).sum(1) / mask.sum(1, keepdim=True)], -1))
-        e = self.embed(f, bank)
-        d = e.shape[-1]
+        kh, bias = keys if keys is not None else self.bank_keys(f, bank)
+        d = kh.shape[-1]
         qh = q.view(len(q), APPEAR_HEADS, d)
-        kh = self.key(e).view(len(bank), APPEAR_HEADS, d)
         # each head is one "kind of change" (a menu opens, a page switches, ...); an element appears if any head says so
         scores = torch.einsum("bhd,khd->bhk", qh, kh) / math.sqrt(d)
-        appear = scores.max(1).values + self.key_bias(e).squeeze(-1)[None]
+        appear = scores.max(1).values + bias[None]
         return vanish, appear
 
 
@@ -168,9 +172,9 @@ def batch_inputs(p, screens, ts):
     return rows, ids, mask, torch.tensor(targets), verbs, words
 
 
-def run_model(model, p, screens, ts):
+def run_model(model, p, screens, ts, keys=None):
     rows, ids, mask, targets, verbs, words = batch_inputs(p, screens, ts)
-    vanish, appear = model(p.f, ids, mask, targets, verbs, words, p.bank)
+    vanish, appear = model(p.f, ids, mask, targets, verbs, words, p.bank, keys)
     return rows, mask, vanish, appear
 
 
@@ -291,30 +295,50 @@ class Neural:
         self.data_dir = Path(data_dir)
         self.vt, self.at = vanish_threshold, appear_threshold
         self.prepared = {}
+        self.keys = {}
 
     def fit(self, app):
         if app.name not in self.prepared:
             self.prepared[app.name] = Prepared(load(self.data_dir / f"{app.name}.pkl"), self.roles)
 
     @torch.no_grad()
-    def probabilities(self, app, screens, ts):
+    def probabilities(self, app, screens, ts, budget=16384):
+        """Each member's vanish and appear probabilities, one 1-D tensor per item.
+        Bank keys are cached per app, and items are batched by element count to bound attention memory."""
         p = self.prepared[app.name]
+        if app.name not in self.keys:
+            self.keys[app.name] = [m.bank_keys(p.f, p.bank) for m in self.members]
         ordered = [sorted(s, key=lambda e: p.app.depth.get(e, 0)) for s in screens]
-        outs = []
-        for m in self.members:
-            rows, mask, vanish, appear = run_model(m, p, ordered, ts)
-            outs.append((torch.sigmoid(vanish), torch.sigmoid(appear)))
-        return p, rows, mask, outs
+        rows = [None] * len(ts)
+        outs = [([None] * len(ts), [None] * len(ts)) for _ in self.members]
+        order = sorted(range(len(ts)), key=lambda i: len(ordered[i]))
+        start = 0
+        while start < len(order):
+            end, longest = start, 0
+            while end < len(order) and max(longest, min(len(ordered[order[end]]) + 1, MAX_ELEMENTS)) * (end - start + 1) <= budget:
+                longest = max(longest, min(len(ordered[order[end]]) + 1, MAX_ELEMENTS))
+                end += 1
+            end = max(end, start + 1)
+            idx = order[start:end]
+            for m, keys, (vs, as_) in zip(self.members, self.keys[app.name], outs):
+                r, mask, vanish, appear = run_model(m, p, [ordered[i] for i in idx], [ts[i] for i in idx], keys)
+                vanish, appear = torch.sigmoid(vanish), torch.sigmoid(appear)
+                for b, i in enumerate(idx):
+                    rows[i] = r[b]
+                    vs[i] = vanish[b, :len(r[b])]
+                    as_[i] = appear[b]
+            start = end
+        return p, rows, outs
 
     def predict_batch(self, app, screens, ts):
-        p, rows, mask, outs = self.probabilities(app, screens, ts)
-        v = torch.stack([o[0] for o in outs]).mean(0)
-        a = torch.stack([o[1] for o in outs]).mean(0)
+        p, rows, outs = self.probabilities(app, screens, ts)
         result = []
         for b, (r, s) in enumerate(zip(rows, screens)):
-            gone = {e for j, e in enumerate(r) if v[b, j] > self.vt}
+            v = torch.stack([o[0][b] for o in outs]).mean(0)
+            a = torch.stack([o[1][b] for o in outs]).mean(0)
+            gone = {e for j, e in enumerate(r) if v[j] > self.vt}
             present = set(s)
-            came = {p.bank_ids[k] for k in torch.nonzero(a[b] > self.at).flatten().tolist() if p.bank_ids[k] not in present}
+            came = {p.bank_ids[k] for k in torch.nonzero(a > self.at).flatten().tolist() if p.bank_ids[k] not in present}
             result.append(frozenset((present - gone) | came))
         return result
 

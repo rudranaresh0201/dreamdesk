@@ -119,7 +119,7 @@ def visited_pairs(app):
     return {(app.abstract(app.screens[t[0]]), app.action(t)[1]) for t in app.transitions["train"]}
 
 
-def predict_many(model, app, screens, ts, chunk=64):
+def predict_many(model, app, screens, ts, chunk=512):
     if hasattr(model, "predict_batch"):
         out = []
         for i in range(0, len(ts), chunk):

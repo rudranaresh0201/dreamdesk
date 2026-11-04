@@ -40,11 +40,11 @@ def tune(args):
         for i in range(0, len(ts), 64):
             chunk = ts[i:i + 64]
             starts = [app.screens[t[0]] for t in chunk]
-            p, rows, mask, outs = model.probabilities(app, starts, chunk)
-            v = torch.stack([o[0] for o in outs]).mean(0)
-            a = torch.stack([o[1] for o in outs]).mean(0)
+            p, rows, outs = model.probabilities(app, starts, chunk)
             for b, (s, t) in enumerate(zip(starts, chunk)):
-                items.append((s, rows[b], v[b, :len(rows[b])].tolist(), a[b], app.screens[t[4]], p.bank_ids))
+                v = torch.stack([o[0][b] for o in outs]).mean(0)
+                a = torch.stack([o[1][b] for o in outs]).mean(0)
+                items.append((s, rows[b], v.tolist(), a, app.screens[t[4]], p.bank_ids))
         cached.append((app.name, items))
         print(f"cached {app.name}", flush=True)
     best = None
@@ -105,12 +105,12 @@ def spearman(x, y):
 
 def member_predictions(model, app, screens, ts):
     """Each member's own thresholded prediction."""
-    p, rows, mask, outs = model.probabilities(app, screens, ts)
+    p, rows, outs = model.probabilities(app, screens, ts)
     per_member = []
     for v, a in outs:
         preds = []
         for b, (r, s) in enumerate(zip(rows, screens)):
-            gone = {e for j, e in enumerate(r) if v[b, j] > model.vt}
+            gone = {e for j, e in enumerate(r) if v[b][j] > model.vt}
             came = {p.bank_ids[k] for k in torch.nonzero(a[b] > model.at).flatten().tolist()} - set(s)
             preds.append(frozenset((set(s) - gone) | came))
         per_member.append(preds)
