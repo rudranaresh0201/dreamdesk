@@ -125,7 +125,7 @@ Estimates at 12–15 hours a week. Every level ships something even if the next 
 | 0 | Now | Finish calculator run, Arm A, read remaining papers | Pipeline works end to end; no paper does this exact study | Reproduce the paper and test what it left out |
 | 1 | 1–2 | Sandbox, recorder v2, app survey | **All escape tests pass**; at least 12 usable apps | Fewer apps; nothing runs outside the sandbox |
 | 2 | 3 | Explorers: Random and Novelty (`experiments/explore_prereg.md`). Curious moves to Stage 3, because it needs the world-model ensemble | Novelty beats Random on distinct screens in at least 6 of 10 apps. **Failed, 4 of 10** (`experiments/explore_results.md`) | Use the best simple explorer and report it. Neither was clearly best, so Stage 3 trains on all 100 runs |
-| 3 (Level 1) | 4–5 | World model, playable dream | Beats Copy and Memo on unvisited transitions at horizon 5, and runs at least 100× real speed | Publish environment and exploration benchmark |
+| 3 (Level 1) | 4–5 | World model, playable dream | Beats Copy and Memo on unvisited transitions at horizon 5, and runs at least 100× real speed. **Passed: 6 of 6 gate apps, +0.221 vs Memo [+0.201, +0.239], 153×** (`experiments/world_model_results.md`) | Publish environment and exploration benchmark |
 | 4 (Level 2) | 6–7 | Goal agent, all dream arms | Results either way; Dream beating Graph on parametric tasks is the hoped result | Publish the exploitation or graph result |
 | 5 (Level 3) | 8–10 | 20–30 apps, template web apps, prior vs scratch | Prior needs fewer real steps than scratch on held-out apps, with intervals not overlapping | Paper stops at Level 2 |
 | 6 (Level 4) | 11 | Zero and low-practice test | Measured either way | State the limit plainly |
@@ -234,6 +234,14 @@ This is a best case: a tiny page with no network, and the spike's steps only wai
 - Disk-usage and font-viewer saturate in 500 steps.
 - Median step 884 ms.
 - Files had 365 typing errors, from typing into an unnamed field that refuses text. Fix this before Stage 3.
+
+### Stage 3: world model
+5-member ensemble, 2-layer transformer, trained on seeds 0–2 of all 100 Stage 2 runs. Tested once on seed 4, 2026-11-05 (`experiments/world_model_results.md`).
+- **Gate passed:** at horizon 5 on unvisited windows, it beat Copy and Memo in 6 of 6 gate apps. The equal-weight mean gain over Memo was +0.221, with a 95% interval of [+0.201, +0.239]. The slowest app ran at 173 predictions/s, 153× a real step.
+- The ensemble beat every single member in every gate app.
+- Memo won only in image-viewer, on all and on visited windows.
+- Disagreement flags wrong predictions only moderately: median AUROC 0.665, above 0.7 in 4 of 10 apps. Check it against simpler uncertainty signals before Stage 4 relies on it.
+- Thresholds 0.7/0.7 sit at the grid's edge.
 
 ## Open checks
 - Read UIExplorer, CoAdapt-GUI, WildAWM and MAI-Gym in full; only abstracts so far.
