@@ -8,7 +8,7 @@ try:  # missing on machines that only train (e.g. Kaggle); only the real-app bac
     gi.require_version("Atspi", "2.0")
     from gi.repository import Atspi
     Atspi.init()
-except ImportError:
+except (ImportError, ValueError):  # ValueError: gi present but no Atspi (Kaggle)
     Atspi = None
 
 from .core import Element
