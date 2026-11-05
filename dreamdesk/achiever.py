@@ -271,6 +271,10 @@ def train(args):
         if st.get("cuda_rng") is not None and torch.cuda.is_available():
             torch.cuda.set_rng_state_all(st["cuda_rng"])
         start = st["it"] + 1
+        log_path = out / "train_log.jsonl"
+        if log_path.exists():  # drop iterations after the last save: they get redone exactly
+            keep = [l for l in log_path.read_text().splitlines() if l and json.loads(l)["it"] < start]
+            log_path.write_text("".join(l + "\n" for l in keep))
         print(f"resumed after iteration {st['it']}", flush=True)
     else:
         for s in sources.values():
