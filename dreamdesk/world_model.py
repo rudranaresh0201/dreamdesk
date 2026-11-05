@@ -280,12 +280,12 @@ class Neural:
     """Wraps trained members for wm_eval: averages their probabilities, then thresholds."""
     name = "world-model"
 
-    def __init__(self, paths, data_dir, vanish_threshold=0.5, appear_threshold=0.5, threads=8):
+    def __init__(self, paths, data_dir, vanish_threshold=0.5, appear_threshold=0.5, threads=8, device="cpu"):
         torch.set_num_threads(threads)
         self.members = []
         roles = None
         for path in paths:
-            ck = torch.load(path, weights_only=False)
+            ck = torch.load(path, map_location=device, weights_only=False)
             m = WorldModel(**ck["config"])
             m.load_state_dict(ck["model"])
             m.eval()

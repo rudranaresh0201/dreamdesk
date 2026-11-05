@@ -34,11 +34,24 @@ from .wm_data import load, token
 from .wm_eval import App
 
 
-def pick_goals(app, split, n, seed=0):
-    """The same n scorable goals for every agent: seen and novel, never unreachable."""
+def pick_goals(app, split, n, seed=0, rule="new"):
+    """The same n scorable goals for every agent (never unreachable ones).
+
+    rule "new" (Stage 4 test): no goal identical to a goal recorded in training, since the achiever practises
+    those. Every novel goal is taken (up to n), the rest are familiar goals at random. Each goal is tagged
+    "practised" later from the achiever's practised_goals.json, so results can also be shown on goals the
+    policy never practised, not even as a goal it made up in the dream.
+    rule "pilot": the val pilot's rule (any scorable goal at random), kept to reproduce it."""
     goals = [g for g in GoalSet(app, split).goals if g["kind"] != "unreachable"]
     rng = random.Random(f"{app.name}-{split}-pick-{seed}")
-    return rng.sample(goals, min(n, len(goals)))
+    if rule == "pilot":
+        return rng.sample(goals, min(n, len(goals)))
+    train = {g["keys"] for g in GoalSet(app, "train").goals}
+    goals = [g for g in goals if g["keys"] not in train]
+    novel = [g for g in goals if g["kind"] == "novel"]
+    familiar = [g for g in goals if g["kind"] != "novel"]
+    pick = rng.sample(novel, min(n, len(novel)))
+    return pick + rng.sample(familiar, min(n - len(pick), len(familiar)))
 
 
 def real_keys(elements):
@@ -202,6 +215,7 @@ def main():
     ap.add_argument("--name", default=None, help="label for the output file (default: the agent)")
     ap.add_argument("--split", default="val")
     ap.add_argument("--goals", type=int, default=20)
+    ap.add_argument("--rule", default="new", choices=["new", "pilot"])
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--data", default="data/wm")
     ap.add_argument("--out", required=True)
@@ -209,7 +223,7 @@ def main():
 
     spec = APPS[args.app]
     app = App(load(Path(args.data) / f"{args.app}.pkl"))
-    goals = pick_goals(app, args.split, args.goals)
+    goals = pick_goals(app, args.split, args.goals, rule=args.rule)
     rng = random.Random(f"{args.app}-{args.agent}-{args.seed}")
     agent = AGENTS[args.agent](app, rng, ckpt=args.ckpt)
     env = DeskEnv(spec.backend(), max_steps=MAX_STEPS, blocked_names=spec.blocked_names(), words=spec.words)

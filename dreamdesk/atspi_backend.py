@@ -2,14 +2,16 @@
 import subprocess
 import time
 
-import gi
+try:  # missing on machines that only train (e.g. Kaggle); only the real-app backend needs it
+    import gi
 
-gi.require_version("Atspi", "2.0")
-from gi.repository import Atspi
+    gi.require_version("Atspi", "2.0")
+    from gi.repository import Atspi
+    Atspi.init()
+except ImportError:
+    Atspi = None
 
 from .core import Element
-
-Atspi.init()
 
 
 # States worth showing the agent. AT-SPI has many more; most never change.

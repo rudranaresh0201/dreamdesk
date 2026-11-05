@@ -36,6 +36,7 @@ from .world_model import BUCKETS, MAX_ELEMENTS, STATE_LIST, VERBS, Neural, World
 CONFIG = {"d": 128, "layers": 2, "heads": 4, "ff": 256, "lr": 3e-4, "episodes": 64, "iterations": 300,
           "ppo_epochs": 4, "minibatch": 128, "clip": 0.2, "gamma": 0.95, "lam": 0.95, "entropy": 0.01,
           "value_coef": 0.5, "step_cost": 0.01, "penalty": 0.0}
+SAVE_EVERY = 25
 APPS = ["calculator", "characters", "clocks", "disk-usage", "files", "font-viewer", "image-viewer", "logs",
         "resources", "text-editor"]
 
@@ -185,7 +186,7 @@ def rollout(model, dream, source, cfg):
             r -= cfg["penalty"] * dis[b]
             wins[b] = wins[b] or success[b]
             steps[b].append((items[i], int(k[i]), float(logp[i, k[i]]), float(value[i]), r, dream.done[b], success[b]))
-    return steps, wins
+    return steps, wins, goals
 
 
 def advantages(steps, cfg):
@@ -233,38 +234,81 @@ def update(model, opt, f, data, cfg, rng):
 
 
 def train(args):
-    torch.manual_seed(args.seed)
+    """PPO in the dream. Saves everything needed to resume exactly every SAVE_EVERY iterations, so a run
+    survives a Kaggle session limit or a laptop shutdown: run the same command again with --resume.
+    Also writes practised_goals.json: every goal the policy was ever trained on, per app, so the real test
+    can show which test goals were never practised."""
+    if args.device != "cpu":
+        torch.set_default_device(args.device)
     torch.set_num_threads(args.threads)
-    rng = random.Random(args.seed)
-    cfg = dict(CONFIG, penalty=args.penalty, iterations=args.iterations)
-    th = json.loads(Path("runs/wm/thresholds.json").read_text())
-    wm = Neural(args.members, args.data, th["vanish"], th["appear"], args.threads)
-    dreams = {a: Dream(wm, a, args.data, seed=args.seed) for a in args.apps}
-    sources = {a: GoalSource(d, rng) for a, d in dreams.items()}
-    for s in sources.values():
-        s.refill()
-    model = Achiever(n_roles=len(wm.roles) + 8, **cfg)
-    opt = torch.optim.Adam(model.parameters(), lr=cfg["lr"])
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    state_path = out / "state.pt"
+    resume = state_path.exists() and args.resume
+    if state_path.exists() and not args.resume:
+        raise SystemExit(f"{state_path} exists: pass --resume to continue it, or choose a new --out")
+    torch.manual_seed(args.seed)
+    rng = random.Random(args.seed)
+    cfg = dict(CONFIG, penalty=args.penalty, iterations=args.iterations)
+    th = json.loads(Path(args.thresholds).read_text())
+    wm = Neural(args.members, args.data, th["vanish"], th["appear"], args.threads, device=args.device)
+    dreams = {a: Dream(wm, a, args.data, seed=args.seed) for a in args.apps}
+    sources = {a: GoalSource(d, rng) for a, d in dreams.items()}
+    model = Achiever(n_roles=len(wm.roles) + 8, **cfg)
+    opt = torch.optim.Adam(model.parameters(), lr=cfg["lr"])
+    practised = {a: set() for a in args.apps}
+    start = 0
+    if resume:
+        st = torch.load(state_path, map_location="cpu", weights_only=False)  # rng states must stay on the CPU
+        model.load_state_dict(st["model"])
+        opt.load_state_dict(st["opt"])
+        rng.setstate(st["rng"])
+        for a in args.apps:
+            dreams[a].rng.setstate(st["dream_rng"][a])
+            sources[a].dreamed = st["dreamed"][a]
+            practised[a] = set(st["practised"][a])
+        torch.set_rng_state(st["torch_rng"])
+        if st.get("cuda_rng") is not None and torch.cuda.is_available():
+            torch.cuda.set_rng_state_all(st["cuda_rng"])
+        start = st["it"] + 1
+        print(f"resumed after iteration {st['it']}", flush=True)
+    else:
+        for s in sources.values():
+            s.refill()
     log = open(out / "train_log.jsonl", "a")
     t0 = time.time()
-    for it in range(cfg["iterations"]):
+
+    def save(it):
+        cpu = lambda sd: {k: v.detach().cpu() if hasattr(v, "detach") else v for k, v in sd.items()}
+        torch.save({"model": cpu(model.state_dict()), "config": cfg, "roles": wm.roles, "apps": args.apps,
+                    "it": it, "seed": args.seed}, out / "achiever.pt.tmp")
+        (out / "achiever.pt.tmp").rename(out / "achiever.pt")
+        torch.save({"model": model.state_dict(), "opt": opt.state_dict(), "rng": rng.getstate(), "it": it,
+                    "dream_rng": {a: d.rng.getstate() for a, d in dreams.items()},
+                    "dreamed": {a: s.dreamed for a, s in sources.items()},
+                    "practised": {a: sorted(v) for a, v in practised.items()},
+                    "torch_rng": torch.get_rng_state(),
+                    "cuda_rng": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None},
+                   out / "state.pt.tmp")
+        (out / "state.pt.tmp").rename(state_path)
+        (out / "practised_goals.json").write_text(json.dumps({a: sorted(v) for a, v in practised.items()}))
+
+    for it in range(start, cfg["iterations"]):
         app = args.apps[it % len(args.apps)]
         d, s = dreams[app], sources[app]
         if it % (5 * len(args.apps)) < len(args.apps):
             s.refill()
-        steps, wins = rollout(model, d, s, cfg)
+        steps, wins, goals = rollout(model, d, s, cfg)
+        practised[app].update(g["keys"] for g in goals)
         data = advantages(steps, cfg)
         losses = update(model, opt, wm.prepared[app].f, data, cfg, rng)
         row = {"it": it, "app": app, "dream_success": round(sum(wins) / len(wins), 3), "steps": len(data),
                "losses": losses, "seconds": round(time.time() - t0)}
         log.write(json.dumps(row) + "\n"); log.flush()
         print(row, flush=True)
-        if (it + 1) % 50 == 0 or it + 1 == cfg["iterations"]:
-            torch.save({"model": model.state_dict(), "config": cfg, "roles": wm.roles, "apps": args.apps,
-                        "it": it, "seed": args.seed}, out / "achiever.pt.tmp")
-            (out / "achiever.pt.tmp").rename(out / "achiever.pt")
+        if (it + 1) % SAVE_EVERY == 0 or it + 1 == cfg["iterations"]:
+            save(it)
+    print("finished training", flush=True)
 
 
 def dream_eval(args):
@@ -272,8 +316,8 @@ def dream_eval(args):
     each goal tried args.repeats times. Compare with the real result: the gap is how much the dream misleads."""
     from .real_eval import pick_goals
     torch.set_num_threads(args.threads)
-    ck = torch.load(args.ckpt, weights_only=False)
-    th = json.loads(Path("runs/wm/thresholds.json").read_text())
+    ck = torch.load(args.ckpt, map_location="cpu", weights_only=False)
+    th = json.loads(Path(args.thresholds).read_text())
     wm = Neural(args.members, args.data, th["vanish"], th["appear"], args.threads)
     model = Achiever(n_roles=len(ck["roles"]) + 8, **ck["config"])
     model.load_state_dict(ck["model"])
@@ -283,11 +327,11 @@ def dream_eval(args):
     for app in args.apps:
         d = Dream(wm, app, args.data, seed=args.seed)
         source = GoalSource(d, random.Random(args.seed))
-        goals = pick_goals(d.app, args.split, args.goals)
+        goals = pick_goals(d.app, args.split, args.goals, rule=args.rule)
         batch = [g for g in goals for _ in range(args.repeats)]
         source.sample = lambda n, b=batch: b
         cfg = dict(ck["config"], episodes=len(batch))
-        _, wins = rollout(model, d, source, cfg)
+        _, wins, _ = rollout(model, d, source, cfg)
         per_goal = [sum(wins[i * args.repeats:(i + 1) * args.repeats]) / args.repeats for i in range(len(goals))]
         out[app] = per_goal
         print(f"{app:13} dream success {stats.mean(per_goal):.3f} over {len(goals)} goals x {args.repeats}", flush=True)
@@ -301,6 +345,7 @@ def main():
     ap.add_argument("--split", default="val")
     ap.add_argument("--goals", type=int, default=20)
     ap.add_argument("--repeats", type=int, default=5)
+    ap.add_argument("--rule", default="new", choices=["new", "pilot"])
     ap.add_argument("--data", default="data/wm")
     ap.add_argument("--members", nargs="+", default=[f"runs/wm/member_seed{k}.pt" for k in range(5)])
     ap.add_argument("--apps", nargs="+", default=APPS)
@@ -309,6 +354,9 @@ def main():
     ap.add_argument("--penalty", type=float, default=0.0)
     ap.add_argument("--iterations", type=int, default=CONFIG["iterations"])
     ap.add_argument("--threads", type=int, default=8)
+    ap.add_argument("--device", default="cpu", help="cuda on a GPU machine (Kaggle)")
+    ap.add_argument("--resume", action="store_true")
+    ap.add_argument("--thresholds", default="runs/wm/thresholds.json")
     args = ap.parse_args()
     train(args) if args.cmd == "train" else dream_eval(args)
 
