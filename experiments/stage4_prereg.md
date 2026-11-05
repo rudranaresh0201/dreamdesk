@@ -75,3 +75,7 @@ Written 2026-11-05, before any training run of the arms below and before any age
    - **Why:** Kaggle's T4 measured about 10 s per iteration and its CPU 18.7 s, against about 6.7 s on the laptop. The bottleneck is Python-side dream stepping and PPO updates, which the GPU barely speeds up. The original plan needed about 28 GPU-hours, nearly the whole weekly quota.
    - **Where it runs:** seeds 0 and 1 of both arms train on the laptop (`scripts/train_ach.sh`, 2 at a time, about 1.4 GB RAM each). Seed 2 of both arms trains on Kaggle (`kaggle/stage4_train.ipynb`, `SEEDS = [2]`). The code is the same; results won't be bit-identical across devices.
    - **Unchanged:** everything else, including the goals, the agents, the gate rule and the penalty of 0.5.
+2. **Seed 2 fallback (2026-11-05 23:50, before any test-split result was seen).**
+   - The Kaggle seed-2 job was still running after about 11 of its 12 allowed hours. Two runs in parallel on Kaggle's CPU were far slower than the single-run benchmark.
+   - If Kaggle's seed-2 runs don't finish (or can't be resumed from their saved state), seed 2 of both arms trains on the laptop with `scripts/train_ach.sh`, then is tested with the same scripts (`scripts/stage4_seed2_fallback.sh`).
+   - Results will say which machine trained seed 2. Nothing else changes.
