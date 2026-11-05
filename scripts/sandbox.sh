@@ -31,7 +31,7 @@ done
 # Code only, read-only, at a neutral path so your home folder doesn't exist inside.
 # data/, runs/ and .git stay out so an agent can't reach them.
 WORK=/work/dreamdesk
-for path in dreamdesk scripts tests .venv; do
+for path in dreamdesk scripts tests .venv data/wm runs; do  # data/wm and runs read-only: models and goals for real-app tests
   ARGS+=(--ro-bind-try "$ROOT/$path" "$WORK/$path")
 done
 [ -n "$OUT" ] && ARGS+=(--bind "$OUT" "$OUT")
