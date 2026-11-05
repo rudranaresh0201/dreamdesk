@@ -267,19 +267,50 @@ def train(args):
             (out / "achiever.pt.tmp").rename(out / "achiever.pt")
 
 
+def dream_eval(args):
+    """Success of a trained achiever in the dream on the same goals the real test uses (real_eval.pick_goals),
+    each goal tried args.repeats times. Compare with the real result: the gap is how much the dream misleads."""
+    from .real_eval import pick_goals
+    torch.set_num_threads(args.threads)
+    ck = torch.load(args.ckpt, weights_only=False)
+    th = json.loads(Path("runs/wm/thresholds.json").read_text())
+    wm = Neural(args.members, args.data, th["vanish"], th["appear"], args.threads)
+    model = Achiever(n_roles=len(ck["roles"]) + 8, **ck["config"])
+    model.load_state_dict(ck["model"])
+    model.eval()
+    torch.manual_seed(args.seed)
+    out = {}
+    for app in args.apps:
+        d = Dream(wm, app, args.data, seed=args.seed)
+        source = GoalSource(d, random.Random(args.seed))
+        goals = pick_goals(d.app, args.split, args.goals)
+        batch = [g for g in goals for _ in range(args.repeats)]
+        source.sample = lambda n, b=batch: b
+        cfg = dict(ck["config"], episodes=len(batch))
+        _, wins = rollout(model, d, source, cfg)
+        per_goal = [sum(wins[i * args.repeats:(i + 1) * args.repeats]) / args.repeats for i in range(len(goals))]
+        out[app] = per_goal
+        print(f"{app:13} dream success {stats.mean(per_goal):.3f} over {len(goals)} goals x {args.repeats}", flush=True)
+    Path(args.out).write_text(json.dumps(out))
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["train"])
+    ap.add_argument("cmd", choices=["train", "dream_eval"])
+    ap.add_argument("--ckpt", default=None)
+    ap.add_argument("--split", default="val")
+    ap.add_argument("--goals", type=int, default=20)
+    ap.add_argument("--repeats", type=int, default=5)
     ap.add_argument("--data", default="data/wm")
     ap.add_argument("--members", nargs="+", default=[f"runs/wm/member_seed{k}.pt" for k in range(5)])
     ap.add_argument("--apps", nargs="+", default=APPS)
-    ap.add_argument("--out", required=True)
+    ap.add_argument("--out", required=True, help="train: folder; dream_eval: json file")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--penalty", type=float, default=0.0)
     ap.add_argument("--iterations", type=int, default=CONFIG["iterations"])
     ap.add_argument("--threads", type=int, default=8)
     args = ap.parse_args()
-    train(args)
+    train(args) if args.cmd == "train" else dream_eval(args)
 
 
 if __name__ == "__main__":
