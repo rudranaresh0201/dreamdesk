@@ -126,7 +126,7 @@ Estimates at 12–15 hours a week. Every level ships something even if the next 
 | 1 | 1–2 | Sandbox, recorder v2, app survey | **All escape tests pass**; at least 12 usable apps | Fewer apps; nothing runs outside the sandbox |
 | 2 | 3 | Explorers: Random and Novelty (`experiments/explore_prereg.md`). Curious moves to Stage 3, because it needs the world-model ensemble | Novelty beats Random on distinct screens in at least 6 of 10 apps. **Failed, 4 of 10** (`experiments/explore_results.md`) | Use the best simple explorer and report it. Neither was clearly best, so Stage 3 trains on all 100 runs |
 | 3 (Level 1) | 4–5 | World model, playable dream | Beats Copy and Memo on unvisited transitions at horizon 5, and runs at least 100× real speed. **Passed: 6 of 6 gate apps, +0.221 vs Memo [+0.201, +0.239], 153×** (`experiments/world_model_results.md`) | Publish environment and exploration benchmark |
-| 4 (Level 2) | 6–7 | Goal agent, all dream arms | Results either way; Dream beating Graph on parametric tasks is the hoped result | Publish the exploitation or graph result |
+| 4 (Level 2) | 6–7 | Goal agent, all dream arms | Results either way; Dream beating Graph on parametric tasks is the hoped result. **H1 failed:** Dream beat Random pooled (+5.4 [+0.8, +9.8]) but not on never-practised goals (−0.2 [−5.1, +4.8]); Graph beat Dream by 20.9 points; dream−real gap −2.3 pooled (`experiments/stage4_results.md`) | Publish the exploitation or graph result |
 | 5 (Level 3) | 8–10 | 20–30 apps, template web apps, prior vs scratch | Prior needs fewer real steps than scratch on held-out apps, with intervals not overlapping | Paper stops at Level 2 |
 | 6 (Level 4) | 11 | Zero and low-practice test | Measured either way | State the limit plainly |
 | 7 | 12 | Paper, repo, videos | Public release | n/a |
@@ -242,6 +242,14 @@ This is a best case: a tiny page with no network, and the spike's steps only wai
 - Memo won only in image-viewer, on all and on visited windows.
 - Disagreement flags wrong predictions only moderately: median AUROC 0.665, above 0.7 in 4 of 10 apps. Check it against simpler uncertainty signals before Stage 4 relies on it.
 - Thresholds 0.7/0.7 sit at the grid's edge.
+
+### Stage 4: policy trained in the dream
+PPO achiever, trained only in the Stage 3 dream (3 seeds × Dream and Penalty arms, 1,500 iterations). Tested once on 294 test-seed goals, 2026-11-06 (`experiments/stage4_results.md`).
+- **H1 failed.** Dream beat Random by +5.4 points pooled, but by −0.2 [−5.1, +4.8] on the 221 goals no Dream seed practised. On practised goals: 86% vs 64%.
+- **The dream mostly didn't lie:** dream vs real success was −2.3 points pooled. Per app it ranged −19 to +20, and only disk-usage over-promised (20% vs 0%).
+- **The policy didn't generalise:** it learned the goals it practised, not a goal-reaching skill.
+- **Graph planning reached 48% of never-practised goals,** double the Dream policy. Next: plan inside the world model instead of a learned policy (needs its own prereg).
+- **The disagreement penalty cost 2.5 points** [−4.6, −0.3] (Clocks −8, Files −14), because there was little exploitation to prevent.
 
 ## Open checks
 - Read UIExplorer, CoAdapt-GUI, WildAWM and MAI-Gym in full; only abstracts so far.
