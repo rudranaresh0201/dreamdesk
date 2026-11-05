@@ -22,10 +22,10 @@ Written 2026-11-05, before any training run of the arms below and before any age
 ## Agents
 | Arm | What | Runs |
 |---|---|---|
-| Random | A random allowed action | 5 seeds |
+| Random | A random allowed action | 5 seeds (3 after Deviation 1) |
 | Graph | Exact-screen map of training exploration plus BFS. It follows its plan and keeps the most common outcome per action (`real_eval.GraphAgent`) | 1 run |
-| Dream | Achiever trained in the dream, penalty 0 | 5 seeds |
-| Penalty | Same, reward minus 0.5 × ensemble disagreement per step | 5 seeds |
+| Dream | Achiever trained in the dream, penalty 0 | 5 seeds (3 after Deviation 1) |
+| Penalty | Same, reward minus 0.5 × ensemble disagreement per step | 5 seeds (3 after Deviation 1) |
 
 - **Achiever configuration:** `achiever.CONFIG` at the commit of this file. 3,000 PPO iterations, which is 300 per app, cycling through apps. 64 episodes per iteration. Training goals are half recorded (train seeds) and half dreamed.
   - Trained on Kaggle (GPU) with `kaggle/stage4_train.ipynb`, with the code and data at this commit.
@@ -66,4 +66,12 @@ Written 2026-11-05, before any training run of the arms below and before any age
 4. Write `experiments/stage4_results.md` from the raw per-goal files.
 
 ## Deviations
-None yet.
+1. **Compute budget (2026-11-05, before any arm was trained).**
+   - **What changed:**
+     - 3 seeds (0, 1, 2) instead of 5 for Random, Dream and Penalty.
+     - 1,500 PPO iterations instead of 3,000.
+     - The H1 averages are over 3 seeds per arm.
+     - "Never practised" means not practised by any of the 3 Dream seeds.
+   - **Why:** Kaggle's T4 measured about 10 s per iteration and its CPU 18.7 s, against about 6.7 s on the laptop. The bottleneck is Python-side dream stepping and PPO updates, which the GPU barely speeds up. The original plan needed about 28 GPU-hours, nearly the whole weekly quota.
+   - **Where it runs:** seeds 0 and 1 of both arms train on the laptop (`scripts/train_ach.sh`, 2 at a time, about 1.4 GB RAM each). Seed 2 of both arms trains on Kaggle (`kaggle/stage4_train.ipynb`, `SEEDS = [2]`). The code is the same; results won't be bit-identical across devices.
+   - **Unchanged:** everything else, including the goals, the agents, the gate rule and the penalty of 0.5.
