@@ -5,9 +5,12 @@ Every agent gets the same goals (from a held-out seed's recordings, see goals.py
 
 Agents:
   random    a random allowed action each step
-  graph     a map of the training exploration: abstract screens joined by the actions seen between them.
-            Plan the shortest path to the screen that showed the most goal elements together, take its
-            first step, look again, replan. Unknown screen or no path: a random action.
+  graph     a map of the training exploration: exact screens (as goal-key sets) joined by the actions seen
+            between them. Locate the real screen at the most similar map screen, plan the shortest path
+            to a screen that showed the most goal elements together, and follow it. Replan when the
+            path runs out or its next action isn't offered. No path: a random action. (Two earlier versions oscillated between screens: abstract
+            screens can't tell dialogs apart, and replanning every step flips between paths when the
+            real screen never matches a map screen exactly. Both fixed before any pilot.)
   achiever  the policy trained in the dream (achiever.py), sampling from its action distribution
 
 Run inside the sandbox, e.g.
@@ -51,57 +54,79 @@ class RandomAgent:
 
 
 class GraphAgent:
+    """A map of training exploration at the level of exact screens (as goal-key sets), with actions
+    as edges. The real screen is located at the most similar map screen (Jaccard), then BFS to the
+    nearest screen that showed the most goal elements together; take the first step, look again."""
+
     def __init__(self, app, rng, **_):
         self.app, self.rng = app, rng
-        self.edges = defaultdict(Counter)  # abstract screen -> Counter of (action key, next abstract screen)
-        self.node_keys = defaultdict(list)  # abstract screen -> goal-key sets of the exact screens seen there
-        seen = set()
+        self.node = {}  # goal-key set -> node index
+        self.keys = []
+        self.edges = defaultdict(Counter)  # node -> Counter of (action key, next node)
         for t in app.transitions["train"]:
-            a, b = app.abstract(app.screens[t[0]]), app.abstract(app.screens[t[4]])
+            a, b = self.node_of(app.screens[t[0]]), self.node_of(app.screens[t[4]])
             self.edges[a][(app.action(t)[1], b)] += 1
-            for s, node in ((t[0], a), (t[4], b)):
-                if s not in seen:
-                    seen.add(s)
-                    self.node_keys[node].append({goal_key(app.tokens[i]) for i in app.screens[s]})
+        self.cache = {}
 
-    def abstract_real(self, elements):
-        ids = []
-        for r in snapshot(elements, detail=True):
-            ids.append(token(r))
-        items = set()
-        from .explore import SCREEN_CONTAINERS, SCREEN_STATES
-        for role, name, _, pressable, states in ids:
-            if pressable or "editable" in states:
-                items.add((role, name, tuple(sorted(set(states) & SCREEN_STATES))))
-            if role in SCREEN_CONTAINERS:
-                items.add((role, "", ()))
-        return frozenset(items)
+    def node_of(self, screen):
+        k = frozenset(goal_key(self.app.tokens[i]) for i in screen)
+        if k not in self.node:
+            self.node[k] = len(self.keys)
+            self.keys.append(k)
+        return self.node[k]
+
+    def locate(self, keys):
+        n = self.node.get(frozenset(keys))
+        if n is not None:
+            return n
+        return max(self.edges, key=lambda m: len(keys & self.keys[m]) / len(keys | self.keys[m]))
 
     def plan(self, start, goal):
+        """Shortest path (list of action keys) from start to a screen showing the most goal elements."""
         g = set(goal["keys"])
-        overlap = {n: max(len(g & k) for k in ks) for n, ks in self.node_keys.items()}
-        best = max(overlap.values(), default=0)
-        if best == 0:
-            return None
-        targets = {n for n, v in overlap.items() if v == best}
-        first = {start: None}
+        if goal["keys"] not in self.cache:
+            overlap = [len(g & k) for k in self.keys]
+            best = max(overlap, default=0)
+            self.cache[goal["keys"]] = {n for n, v in enumerate(overlap) if v == best} if best else set()
+        targets = self.cache[goal["keys"]] - {start}  # here already and not done: look elsewhere
+        back = {start: None}
         q = deque([start])
         while q:
             n = q.popleft()
-            if n in targets and n != start:
-                return first[n]
-            for (act, nxt), _ in self.edges[n].most_common():
-                if nxt not in first:
-                    first[nxt] = first[n] or act
+            if n in targets:
+                path = []
+                while back[n] is not None:
+                    n, act = back[n]
+                    path.append(act)
+                return path[::-1]
+            for act, nxt in self.outcomes(n):
+                if nxt not in back:
+                    back[nxt] = (n, act)
                     q.append(nxt)
-        return None
+        return []
+
+    def outcomes(self, n):
+        """Each action's most common next screen only. Rarer outcomes are mostly late effects of an
+        earlier action recorded on this step (e.g. a dialog opening one step late), not real edges."""
+        best = {}
+        for (act, nxt), c in self.edges[n].items():
+            if act not in best or c > best[act][1]:
+                best[act] = (nxt, c)
+        return [(act, nxt) for act, (nxt, _) in best.items()]
 
     def act(self, elements, actions, goal):
-        step = self.plan(self.abstract_real(elements), goal)
-        if step is not None:
-            for a in actions:
-                if (a.verb, a.element.role, a.element.name, a.text) == step:
-                    return a
+        """Follow the current plan; replan when it runs out, the goal changed, or its next step isn't offered."""
+        if getattr(self, "goal", None) is not goal:
+            self.path, self.goal = [], goal
+        for attempt in range(2):
+            if self.path:
+                step = self.path[0]
+                for a in actions:
+                    if (a.verb, a.element.role, a.element.name, a.text) == step:
+                        self.path = self.path[1:]
+                        return a
+            if attempt == 0:
+                self.path = self.plan(self.locate(real_keys(elements)), goal)
         return self.rng.choice(actions)
 
 
