@@ -20,10 +20,10 @@ run_one() {
   for f in "$OUT/$base.jsonl" "$OUT/logs/$base.log"; do [ -e "$f" ] && mv "$f" "$OUT/interrupted/$(date +%s)_$(basename "$f")"; done
   local extra=""; [ -n "${ckpt:-}" ] && extra="--ckpt $ckpt"
   nice -n 10 timeout 2h bash scripts/sandbox.sh --out "$OUT" /usr/bin/bash -c \
-    ".venv/bin/python -u -W ignore -m dreamdesk.real_eval --app $app --agent $agent --name $name $extra --seed $seed --rule ${GOAL_RULE:-new} --split $SPLIT --goals $GOALS --out $OUT 2>&1" \
+    ".venv/bin/python -u -W ignore -m dreamdesk.real_eval --app $app --agent $agent --name $name $extra --seed $seed --rule ${GOAL_RULE:-new} --split $SPLIT --goals $GOALS --data ${DATA:-data/wm} --out $OUT 2>&1" \
     2>&1 | grep -v dbind | grep -v '^$' > "$OUT/logs/$base.log"
 }
 export -f run_one
-export OUT SPLIT GOALS GOAL_RULE
+export OUT SPLIT GOALS GOAL_RULE DATA
 printf '%s\n' "${JOBS[@]}" | xargs -P "$PARALLEL" -L 1 bash -c 'run_one "$0" "$1"'
 echo "all real runs finished"
