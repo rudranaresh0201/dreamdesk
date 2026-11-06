@@ -312,6 +312,7 @@ def main():
                     "fixed across exploration budgets by taking them from the full data")
     ap.add_argument("--members", nargs="+", default=None, help="planner: world-model members (default: Stage 3)")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--kind", default=None, choices=["seen", "combo"], help="demo only: keep goals of this kind")
     args = ap.parse_args()
 
     spec = APPS[args.app]
@@ -319,6 +320,8 @@ def main():
     goal_app = App(load(Path(args.goal_data) / f"{args.app}.pkl")) if args.goal_data else app
     if args.rule == "split":
         goals = pick_split_goals(goal_app, app, args.split, args.goals)
+        if args.kind:
+            goals = [g for g in goals if g["kind"] == args.kind]
     else:
         goals = pick_goals(goal_app, args.split, args.goals, rule=args.rule)
     rng = random.Random(f"{args.app}-{args.agent}-{args.seed}")
@@ -328,18 +331,26 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"{args.app}_{args.name or args.agent}_{args.split}_seed{args.seed}.jsonl"
     wins, t0 = 0, time.time()
+    # demo video only: timestamped events, with what the dream planner imagined the next screen would be
+    demo = open(os.environ["DEMO_LOG"], "a") if os.environ.get("DEMO_LOG") else None
+    names = lambda ids: sorted({f"{app.tokens[i][0]}: {app.tokens[i][1] or app.tokens[i][2]}" for i in ids if app.tokens[i][1] or app.tokens[i][2]})
+    log = lambda **e: demo and (demo.write(json.dumps(dict(t=time.time(), **e), ensure_ascii=False) + "\n"), demo.flush())
     with open(path, "x") as f:
         for gi, goal in enumerate(goals):
             elements = env.reset(NoTask())
             keys = set(goal["keys"])
             done = keys <= real_keys(elements)
             steps, taken, error = 0, [], None
+            log(ev="goal", goal=gi, kind=goal["kind"], keys=[f"{k[0]}: {k[1] or k[2]}" for k in goal["keys"]])
             while not done and steps < MAX_STEPS:
                 actions = usable(env)
                 if not actions:
                     break
                 a = agent.act(elements, actions, goal)
                 taken.append(a.describe())
+                im = getattr(agent, "imagined", None)
+                log(ev="act", goal=gi, step=steps + 1, action=a.describe(), plan_len=len(getattr(agent, "path", []) or []),
+                    imagined=names(im[0]) if im else None)
                 try:
                     elements, _, _, info = env.act(a)
                 except Exception as err:
@@ -350,6 +361,7 @@ def main():
                     break
                 done = keys <= real_keys(elements)
             wins += done
+            log(ev="end", goal=gi, success=bool(done), steps=steps)
             f.write(json.dumps({"goal": gi, "kind": goal["kind"], "goal_steps": goal["steps"], "keys": goal["keys"],
                                 "success": done, "steps": steps, "actions": taken, "error": error}, ensure_ascii=False) + "\n")
             f.flush()
