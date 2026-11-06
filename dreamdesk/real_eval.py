@@ -19,6 +19,7 @@ Run inside the sandbox, e.g.
 """
 import argparse
 import json
+import os
 import random
 import time
 from collections import Counter, defaultdict, deque
@@ -52,6 +53,27 @@ def pick_goals(app, split, n, seed=0, rule="new"):
     familiar = [g for g in goals if g["kind"] != "novel"]
     pick = rng.sample(novel, min(n, len(novel)))
     return pick + rng.sample(familiar, min(n - len(pick), len(familiar)))
+
+
+def pick_split_goals(goal_app, known_app, split, n, horizon=10, seed=0):
+    """Generalisation test (experiments/generalise_prereg.md): goals reached within `horizon` steps of a fresh
+    start in `split`, each tagged against what the agent explored (known_app's train transitions):
+      "seen"     some explored screen showed every goal element together (a map can aim at it)
+      "combo"    every goal element was seen, but never all on one explored screen (only a generaliser can)
+      "unknown"  some goal element was never seen (impossible for both; left out)
+    Returns up to n seen and up to n combo goals, each sampled at random with a fixed seed."""
+    ids = {t[0] for t in known_app.transitions["train"]} | {t[4] for t in known_app.transitions["train"]}
+    screens = [{goal_key(known_app.tokens[i]) for i in known_app.screens[s]} for s in ids]
+    bank = set().union(*screens)
+    out = {"seen": [], "combo": []}
+    for g in GoalSet(goal_app, split, horizon=horizon).goals:
+        keys = set(g["keys"])
+        if not keys <= bank:
+            continue
+        g = dict(g, kind="seen" if any(keys <= s for s in screens) else "combo")
+        out[g["kind"]].append(g)
+    rng = random.Random(f"{goal_app.name}-{split}-split-{seed}")
+    return [g for k in ("seen", "combo") for g in rng.sample(out[k], min(n, len(out[k])))]
 
 
 def real_keys(elements):
@@ -219,6 +241,7 @@ class PlannerAgent:
         self.dream = Dream(wm, app.name, data)
         self.vocab = {t: i for i, t in enumerate(self.dream.app.tokens)}
         self.rng = rng
+        self.depth = int(os.environ.get("PLANNER_DEPTH", "5"))  # Stage 4 default 5
         self.goal, self.path, self.imagined = None, [], []
 
     def screen(self, elements):
@@ -246,7 +269,7 @@ class PlannerAgent:
         self.steps += 1
         a = self.find(self.path[0], actions, by_elem) if self.path else None
         if a is None:
-            self.path, self.imagined = plan(self.dream, screen, keys, min(5, MAX_STEPS - self.steps + 1))
+            self.path, self.imagined = plan(self.dream, screen, keys, min(self.depth, MAX_STEPS - self.steps + 1))
             a = self.find(self.path[0], actions, by_elem) if self.path else None
         if a is None:
             self.path, self.imagined = [], []
@@ -282,7 +305,7 @@ def main():
     ap.add_argument("--name", default=None, help="label for the output file (default: the agent)")
     ap.add_argument("--split", default="val")
     ap.add_argument("--goals", type=int, default=20)
-    ap.add_argument("--rule", default="new", choices=["new", "pilot"])
+    ap.add_argument("--rule", default="new", choices=["new", "pilot", "split"])
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--data", default="data/wm", help="the agent's knowledge: map, dream bank and starts")
     ap.add_argument("--goal-data", default=None, help="where goals come from (default: --data); Stage 5 keeps goals "
@@ -294,7 +317,10 @@ def main():
     spec = APPS[args.app]
     app = App(load(Path(args.data) / f"{args.app}.pkl"))
     goal_app = App(load(Path(args.goal_data) / f"{args.app}.pkl")) if args.goal_data else app
-    goals = pick_goals(goal_app, args.split, args.goals, rule=args.rule)
+    if args.rule == "split":
+        goals = pick_split_goals(goal_app, app, args.split, args.goals)
+    else:
+        goals = pick_goals(goal_app, args.split, args.goals, rule=args.rule)
     rng = random.Random(f"{args.app}-{args.agent}-{args.seed}")
     agent = AGENTS[args.agent](app, rng, ckpt=args.ckpt, members=args.members, data=args.data)
     env = DeskEnv(spec.backend(), max_steps=MAX_STEPS, blocked_names=spec.blocked_names(), words=spec.words)

@@ -8,12 +8,14 @@
 set -u
 cd "$(dirname "$0")/.."
 OUT="$(realpath -m "$1")"; SPLIT="$2"; GOALS="$3"; PARALLEL="$4"; SEEDS="$5"; BUDGETS="${6:-100 300 1000}"
-APPS="disk-usage files logs"
+APPS="${APPS:-disk-usage files logs}"
 mkdir -p "$OUT/logs" "$OUT/interrupted"
 JOBS=()
 for seed in $SEEDS; do for app in $APPS; do
-  JOBS+=("$app random random - $seed")
+  [ "${GOAL_RULE:-pilot}" = split ] || JOBS+=("$app random random - $seed")
   for b in $BUDGETS; do
+    # rule "split": goals depend on what the first B clicks saw, so Random gets its own run per budget
+    [ "${GOAL_RULE:-pilot}" = split ] && JOBS+=("$app random random-B$b $b $seed")
     JOBS+=("$app graph graph-B$b $b $seed" "$app planner planner-B$b $b $seed")
   done
 done; done
@@ -22,17 +24,17 @@ run_one() {
   local base="${app}_${name}_${SPLIT}_seed${seed}"
   if grep -q '^finished:' "$OUT/logs/$base.log" 2>/dev/null; then return; fi
   for f in "$OUT/$base.jsonl" "$OUT/logs/$base.log"; do [ -e "$f" ] && mv "$f" "$OUT/interrupted/$(date +%s)_$(basename "$f")"; done
-  local data="data/wm_final" extra=""
+  local data="${GOAL_DATA:-data/wm_final}" extra=""
   if [ "$b" != "-" ]; then
-    data="data/budget_final/B$b"
-    extra="--members runs/ft/finetune_${app}_B${b}_seed0.pt runs/ft/finetune_${app}_B${b}_seed1.pt runs/ft/finetune_${app}_B${b}_seed2.pt"
+    data="${BUDGET_DIR:-data/budget_final}/B$b"
+    [ "$agent" = random ] || extra="--members runs/ft/finetune_${app}_B${b}_seed0.pt runs/ft/finetune_${app}_B${b}_seed1.pt runs/ft/finetune_${app}_B${b}_seed2.pt"
   fi
   nice -n 10 timeout 2h bash scripts/sandbox.sh --out "$OUT" /usr/bin/bash -c \
-    ".venv/bin/python -u -W ignore -m dreamdesk.real_eval --app $app --agent $agent --name $name $extra --data $data --goal-data data/wm_final --seed $seed --rule pilot --split $SPLIT --goals $GOALS --out $OUT 2>&1" \
+    "PLANNER_DEPTH=${PLANNER_DEPTH:-5} .venv/bin/python -u -W ignore -m dreamdesk.real_eval --app $app --agent $agent --name $name $extra --data $data --goal-data ${GOAL_DATA:-data/wm_final} --seed $seed --rule ${GOAL_RULE:-pilot} --split $SPLIT --goals $GOALS --out $OUT 2>&1" \
     2>&1 | grep -v dbind | grep -v '^$' > "$OUT/logs/$base.log"
   echo "$(date +%H:%M) $base: $(tail -1 "$OUT/logs/$base.log")"
 }
 export -f run_one
-export OUT SPLIT GOALS
+export OUT SPLIT GOALS GOAL_RULE PLANNER_DEPTH GOAL_DATA BUDGET_DIR
 printf '%s\n' "${JOBS[@]}" | xargs -P "$PARALLEL" -L 1 bash -c 'run_one "$0" "$1" "$2" "$3" "$4"'
 echo "all stage 5 task runs finished"
