@@ -96,7 +96,7 @@ def report(args):
         res.setdefault((r["app"], r["budget"], r["arm"]), []).append(r)
     base = json.loads(Path(args.step1).read_text())
     f = lambda x: f"{x:.3f}" if x is not None else "-"
-    lines = ["| App | B | Copy | Memo | Zero-shot | Scratch (seeds) | Fine-tuned (seeds) |", "|---|---|---|---|---|---|---|"]
+    lines = ["| App | B | Copy | Memo | Zero-shot | Fine-tuned (seeds) | Scratch (seeds) |", "|---|---|---|---|---|---|---|"]
     gate1 = gate2 = 0
     for app in HELD_OUT:
         for b in BUDGETS:
