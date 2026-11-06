@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Settings</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+app({sec:"General", dark:false, notif:true, sound:true, vol:"Medium", lang:"English", adv:false, dlg:null}, () => {
+  let b="";
+  if (S.sec=="General") b=`${check("Dark mode","dark")}<label>Language <select aria-label="Language" onchange="set('lang',this.value)">${["English","Español","Deutsch"].map(l=>`<option ${S.lang==l?"selected":""}>${l}</option>`).join("")}</select></label>`;
+  if (S.sec=="Notifications") b=`${check("Allow notifications","notif")}${S.notif?check("Play sound","sound"):"<p>Notifications are off</p>"}`;
+  if (S.sec=="Sound") b=`<p>Volume: ${S.vol}</p>${["Low","Medium","High"].map(v=>`<button aria-pressed="${S.vol==v}" onclick="set('vol','${v}')">${v}</button>`).join("")}`;
+  if (S.sec=="About") b=`<p>Version 2.1</p><button onclick="tog('adv')">${S.adv?"Hide":"Show"} advanced</button>${S.adv?`<button onclick="set('dlg','reset')">Reset all settings</button>`:""}`;
+  return `<h1>Settings</h1><nav aria-label="Sections">${["General","Notifications","Sound","About"].map(s=>`<button aria-current="${S.sec==s}" onclick="set('sec','${s}')">${s}</button>`).join("")}</nav><h2>${S.sec}</h2>${b}
+  ${S.dlg?dialog("Reset settings?",`<button onclick="S.dark=false;S.notif=true;S.sound=true;S.vol='Medium';S.lang='English';S.dlg=null;R()">Reset</button>`):""}`;
+});</script></body></html>

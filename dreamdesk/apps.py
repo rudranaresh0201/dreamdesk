@@ -5,6 +5,7 @@ Blocked names stop actions that end the episode for reasons that teach nothing: 
 the window, quitting, or killing processes.
 """
 from dataclasses import dataclass, field
+from pathlib import Path
 
 from .atspi_backend import AtspiBackend
 
@@ -28,6 +29,9 @@ class AppSpec:
     def blocked_names(self):
         return WINDOW | self.blocked
 
+    def env_kw(self):
+        return {}
+
 
 def _spec(name, command, a11y_name, blocked=(), **kw):
     return AppSpec(name, tuple(command), a11y_name, frozenset(blocked), **kw)
@@ -45,3 +49,30 @@ APPS = {s.name: s for s in [
     _spec("logs", ["gnome-logs"], "logs"),
     _spec("resources", ["resources"], "resources", blocked={"End App", "Kill App", "Halt App", "Stop App"}, noisy=True),
 ]}
+
+
+# Web apps (dreamdesk/webapps, built by build.py): local single pages in headless Chrome, no network, nothing stored.
+WEBAPPS = Path(__file__).parent / "webapps"
+
+
+@dataclass(frozen=True)
+class WebSpec:
+    name: str
+    page: str
+    words: tuple = ("hello", "42", "test")
+
+    def backend(self):
+        from .web_backend import WebBackend
+        return WebBackend(f"file://{WEBAPPS / self.page}")
+
+    def blocked_names(self):
+        return frozenset()  # no window to close; a dialog's Close button is part of the app
+
+    def env_kw(self):
+        from .web_backend import ENV_TIMING
+        return dict(ENV_TIMING)
+
+
+WEB_APPS = ["todo", "notes", "shop", "settings", "calendar", "kanban", "contacts", "photos", "chat", "quiz", "converter",
+            "signup", "filetree", "music", "booking", "recipes", "fitness", "library", "tracker", "faq", "weather"]
+APPS.update({f"web-{n}": WebSpec(f"web-{n}", f"{n}.html") for n in WEB_APPS})

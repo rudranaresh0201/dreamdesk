@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><title>Tasks</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+app({items:[{t:"Buy milk",d:false},{t:"Call Sam",d:true}], f:"All", dlg:null, n:""}, () => {
+  const vis = S.items.filter(i => S.f=="All" || (S.f=="Done")==i.d);
+  return `<h1>Tasks</h1>${tabs("f",["All","Open","Done"])}
+  <ul>${vis.map((i,k)=>`<li>${i.d?"Done":"Open"}: ${i.t} <button onclick="S.items[${S.items.indexOf(i)}].d=!S.items[${S.items.indexOf(i)}].d;R()">${i.d?"Reopen":"Complete"} ${i.t}</button> <button onclick="S.items.splice(${S.items.indexOf(i)},1);R()">Delete ${i.t}</button></li>`).join("")}</ul>
+  <p>${S.items.filter(i=>!i.d).length} open</p>
+  <button onclick="set('dlg','add')">New task</button> <button onclick="S.items=S.items.filter(i=>!i.d);R()">Clear completed</button>
+  ${S.dlg=="add"?dialog("New task", field("Title","n")+`<button onclick="S.items.push({t:S.n||'Untitled',d:false});S.n='';S.dlg=null;R()">Add</button>`):""}`;
+});</script></body></html>

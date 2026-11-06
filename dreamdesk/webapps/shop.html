@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><head><title>Shop</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const P={Lamp:20,Mug:8,Chair:45,Plant:12};
+app({page:"Catalog", cart:{}, ship:"Standard", done:false}, () => {
+  const n=Object.values(S.cart).reduce((a,b)=>a+b,0), tot=Object.entries(S.cart).reduce((a,[k,v])=>a+P[k]*v,0)+(S.ship=="Express"?10:0);
+  let body="";
+  if (S.page=="Catalog") body=`<ul>${Object.keys(P).map(k=>`<li>${k} $${P[k]} <button onclick="S.cart['${k}']=(S.cart['${k}']||0)+1;R()">Add ${k} to cart</button></li>`).join("")}</ul>`;
+  if (S.page=="Cart") body=n?`<ul>${Object.entries(S.cart).filter(([k,v])=>v).map(([k,v])=>`<li>${k} × ${v} <button onclick="S.cart['${k}']--;R()">Remove one ${k}</button></li>`).join("")}</ul><p>Total $${tot}</p><button onclick="set('page','Checkout')">Checkout</button>`:"<p>Your cart is empty</p>";
+  if (S.page=="Checkout") body=S.done?"<h2>Order placed</h2><button onclick=\"S.cart={};S.done=false;set('page','Catalog')\">Continue shopping</button>":
+    `<fieldset><legend>Shipping</legend>${["Standard","Express"].map(s=>`<label><input type="radio" name="s" ${S.ship==s?"checked":""} onchange="set('ship','${s}')">${s}</label>`).join("")}</fieldset><p>Total $${tot}</p><button onclick="set('done',true)">Place order</button>`;
+  return `<h1>Shop</h1>${tabs("page",["Catalog","Cart","Checkout"])}<p>Cart (${n})</p>${body}`;
+});</script></body></html>

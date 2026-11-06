@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Photos</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const A={Holiday:["Beach","Hotel","Sunset"],Family:["Dinner","Garden"],Pets:["Cat","Dog","Fish","Bird"]};
+app({album:null, i:0, fav:{}, info:false, grid:true}, () => {
+  if (!S.album) return `<h1>Albums</h1><button onclick="tog('grid')">${S.grid?"List view":"Grid view"}</button><ul>${Object.keys(A).map(a=>`<li><button onclick="S.album='${a}';S.i=0;R()">${a} (${A[a].length})</button></li>`).join("")}</ul>`;
+  const ph=A[S.album][S.i];
+  return `<button onclick="set('album',null)">Albums</button><h1>${S.album}</h1><figure><figcaption>${ph} — ${S.i+1} of ${A[S.album].length}</figcaption></figure>
+  <button onclick="set('i',Math.max(0,S.i-1))" ${S.i==0?"disabled":""}>Previous photo</button><button onclick="set('i',Math.min(A[S.album].length-1,S.i+1))" ${S.i==A[S.album].length-1?"disabled":""}>Next photo</button>
+  <button onclick="S.fav[S.album+S.i]=!S.fav[S.album+S.i];R()">${S.fav[S.album+S.i]?"Unfavourite":"Favourite"}</button><button onclick="tog('info')">Info</button>
+  ${S.info?`<aside aria-label="Details"><p>Taken 2025</p><p>Album ${S.album}</p></aside>`:""}`;
+});</script></body></html>

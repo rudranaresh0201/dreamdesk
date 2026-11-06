@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Notes</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+app({notes:["Groceries","Ideas"], open:null, body:{Groceries:"eggs",Ideas:""}, pin:{}, m:false, dlg:null, q:""}, () => {
+  if (S.open!=null) { const n=S.open; return `<h1>${n}</h1><button onclick="set('open',null)">Back</button>
+    <textarea aria-label="Note body" oninput="S.body['${n}']=this.value">${esc(S.body[n]||"")}</textarea>
+    ${menu("m","Note options",[["Pin",`S.pin['${n}']=true`],["Unpin",`S.pin['${n}']=false`],["Delete note",`S.notes=S.notes.filter(x=>x!='${n}');S.open=null`]])}
+    <p>${S.pin[n]?"Pinned":"Not pinned"}</p>`; }
+  return `<h1>Notes</h1>${field("Search notes","q")}<button onclick="R()">Search</button>
+  <ul>${S.notes.filter(n=>n.toLowerCase().includes((S.q||"").toLowerCase())).map(n=>`<li><button onclick="set('open','${n}')">${S.pin[n]?"📌 ":""}${n}</button></li>`).join("")}</ul>
+  <button onclick="S.notes.push('Note '+(S.notes.length+1));R()">New note</button><p>${S.notes.length} notes</p>`;
+});</script></body></html>

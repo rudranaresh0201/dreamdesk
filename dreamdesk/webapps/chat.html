@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><title>Messages</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const BOT={Hello:"Hi there!","How are you?":"Great, thanks.",Bye:"See you!"};
+app({th:null, log:{Mia:["Mia: Lunch?"],Leo:[],Team:["Leo: Standup at 10"]}, mute:{}, m:false}, () => {
+  if (!S.th) return `<h1>Messages</h1><ul>${Object.keys(S.log).map(t=>`<li><button onclick="set('th','${t}')">${t}${S.mute[t]?" (muted)":""} — ${S.log[t].length} messages</button></li>`).join("")}</ul>`;
+  const t=S.th;
+  return `<button onclick="set('th',null)">Back</button><h1>${t}</h1>${menu("m","Conversation options",[[S.mute[t]?"Unmute":"Mute",`S.mute['${t}']=!S.mute['${t}']`],["Clear history",`S.log['${t}']=[]`]])}
+  <ol aria-label="Messages">${S.log[t].map(m=>`<li>${esc(m)}</li>`).join("")||"<li>No messages yet</li>"}</ol>
+  <div role="group" aria-label="Quick replies">${Object.keys(BOT).map(q=>`<button onclick="S.log['${t}'].push('You: ${q}','${t}: ${BOT[q]}');R()">${q}</button>`).join("")}</div>`;
+});</script></body></html>

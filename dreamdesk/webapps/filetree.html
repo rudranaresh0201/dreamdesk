@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Explorer</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const T={Documents:{Work:{"report.txt":1,"plan.txt":1},"cv.txt":1},Music:{"song.mp3":1},Pictures:{Trips:{"rome.jpg":1},"me.jpg":1}};
+app({path:[], sel:null, sort:"Name", dlg:null, hidden:false}, () => {
+  let d=T; S.path.forEach(p=>d=d[p]);
+  let names=Object.keys(d); if (S.sort=="Type") names.sort((a,b)=>(typeof d[a]).localeCompare(typeof d[b])); else names.sort();
+  return `<h1>Explorer</h1><nav aria-label="Path"><button onclick="S.path=[];S.sel=null;R()">Home</button>${S.path.map((p,i)=>`<button onclick="S.path=S.path.slice(0,${i+1});S.sel=null;R()">${p}</button>`).join("")}</nav>
+  ${menu("m","Sort by",[["Name","S.sort='Name'"],["Type","S.sort='Type'"]])}<p>${names.length} items, sorted by ${S.sort}</p>
+  <ul>${names.map(n=>typeof d[n]=="object"?`<li><button onclick="S.path.push('${n}');S.sel=null;R()">Folder ${n}</button></li>`:`<li><button aria-pressed="${S.sel==n}" onclick="set('sel','${n}')">File ${n}</button></li>`).join("")}</ul>
+  ${S.sel?`<p>Selected ${S.sel}</p><button onclick="set('dlg','props')">Properties</button>`:""}${S.dlg?dialog("Properties of "+S.sel,`<p>Size 4 KB</p><p>Folder ${S.path.join("/")||"Home"}</p>`):""}`;
+});</script></body></html>

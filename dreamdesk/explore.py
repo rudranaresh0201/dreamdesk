@@ -101,7 +101,7 @@ def main():
     app = APPS[args.app]
     rng = random.Random(f"{args.app}-{args.explorer}-{args.seed}")
     explorer = EXPLORERS[args.explorer](rng)
-    env = DeskEnv(app.backend(), max_steps=EPISODE_STEPS, blocked_names=app.blocked_names(), words=app.words)
+    env = DeskEnv(app.backend(), max_steps=EPISODE_STEPS, blocked_names=app.blocked_names(), words=app.words, **(app.env_kw()))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"{args.app}_{args.explorer}_seed{args.seed}.jsonl.gz"

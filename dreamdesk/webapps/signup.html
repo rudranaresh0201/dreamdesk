@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Sign up</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+app({step:1, name:"", plan:"Free", terms:false, news:false, err:""}, () => {
+  const steps=["Account","Plan","Confirm"];
+  let b="";
+  if (S.step==1) b=field("Full name","name")+`<button onclick="if(!S.name){S.err='Name is required'}else{S.err='';S.step=2}R()">Continue</button>`;
+  if (S.step==2) b=`${["Free","Pro","Team"].map(p=>`<button aria-pressed="${S.plan==p}" onclick="set('plan','${p}')">${p} plan</button>`).join("")}<p>Chosen ${S.plan}</p><button onclick="set('step',1)">Back</button><button onclick="set('step',3)">Continue</button>`;
+  if (S.step==3) b=`<p>${esc(S.name)}, ${S.plan} plan</p>${check("I accept the terms","terms")}${check("Send me news","news")}<button onclick="set('step',2)">Back</button><button onclick="if(!S.terms){S.err='Accept the terms first'}else{S.err='';S.step=4}R()">Create account</button>`;
+  if (S.step==4) b=`<h2>Welcome, ${esc(S.name)}!</h2><button onclick="S.step=1;S.name='';S.terms=false;R()">Start over</button>`;
+  return `<h1>Sign up</h1>${S.step<4?`<ol aria-label="Progress">${steps.map((s,i)=>`<li>${i+1==S.step?"Current: ":""}${s}</li>`).join("")}</ol>`:""}${S.err?`<p role="alert">${S.err}</p>`:""}${b}`;
+});</script></body></html>

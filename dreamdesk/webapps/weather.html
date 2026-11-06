@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><head><title>Weather</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const W={Oslo:[["Mon",-2,"Snow"],["Tue",0,"Cloudy"],["Wed",1,"Sunny"]],Lima:[["Mon",22,"Sunny"],["Tue",21,"Cloudy"],["Wed",23,"Sunny"]],Pune:[["Mon",30,"Sunny"],["Tue",28,"Rain"],["Wed",29,"Cloudy"]]};
+app({city:"Oslo", unit:"C", day:null, saved:["Oslo"], dlg:null}, () => {
+  const t=c=>S.unit=="C"?c+"°C":Math.round(c*9/5+32)+"°F";
+  return `<h1>Weather</h1><nav aria-label="Saved cities">${S.saved.map(c=>`<button aria-current="${S.city==c}" onclick="S.city='${c}';S.day=null;R()">${c}</button>`).join("")}</nav>
+  <button onclick="set('dlg','add')">Add city</button><button onclick="set('unit',S.unit=='C'?'F':'C')">Show °${S.unit=="C"?"F":"C"}</button>
+  <h2>${S.city}</h2><ul>${W[S.city].map(([d,c,s],i)=>`<li><button aria-pressed="${S.day===i}" onclick="set('day',${i})">${d} ${t(c)}</button></li>`).join("")}</ul>
+  ${S.day!==null?`<p>${W[S.city][S.day][0]}: ${W[S.city][S.day][2]}, ${t(W[S.city][S.day][1])}</p>`:""}
+  ${S.saved.length>1?`<button onclick="S.saved=S.saved.filter(c=>c!=S.city);S.city=S.saved[0];S.day=null;R()">Remove ${S.city}</button>`:""}
+  ${S.dlg?dialog("Add city",Object.keys(W).filter(c=>!S.saved.includes(c)).map(c=>`<button onclick="S.saved.push('${c}');S.city='${c}';S.dlg=null;S.day=null;R()">${c}</button>`).join("")||"<p>All cities added</p>"):""}`;
+});</script></body></html>

@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><title>Recipes</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const RC={Pancakes:{t:"Breakfast",ing:["Flour","Milk","Egg"],st:["Mix","Rest","Fry"]},Salad:{t:"Lunch",ing:["Lettuce","Tomato"],st:["Chop","Toss"]},Curry:{t:"Dinner",ing:["Rice","Spice","Veg"],st:["Boil","Cook","Serve"]}};
+app({r:null, f:"Any", serv:2, step:0, saved:{}, tab:"Ingredients"}, () => {
+  if (!S.r) return `<h1>Recipes</h1>${tabs("f",["Any","Breakfast","Lunch","Dinner"])}<ul>${Object.keys(RC).filter(k=>S.f=="Any"||RC[k].t==S.f).map(k=>`<li><button onclick="S.r='${k}';S.step=0;R()">${S.saved[k]?"★ ":""}${k}</button></li>`).join("")}</ul>`;
+  const x=RC[S.r];
+  return `<button onclick="set('r',null)">All recipes</button><h1>${S.r}</h1><button onclick="S.saved['${S.r}']=!S.saved['${S.r}'];R()">${S.saved[S.r]?"Unsave":"Save recipe"}</button>
+  ${tabs("tab",["Ingredients","Steps"])}${S.tab=="Ingredients"?`<p>Serves ${S.serv}</p><button onclick="set('serv',Math.max(1,S.serv-1))">Fewer servings</button><button onclick="set('serv',Math.min(8,S.serv+1))">More servings</button><ul>${x.ing.map(i=>`<li>${i} × ${S.serv}</li>`).join("")}</ul>`:
+  `<p>Step ${S.step+1} of ${x.st.length}: ${x.st[S.step]}</p><button ${S.step==0?"disabled":""} onclick="set('step',S.step-1)">Previous step</button><button ${S.step==x.st.length-1?"disabled":""} onclick="set('step',S.step+1)">Next step</button>`}`;
+});</script></body></html>

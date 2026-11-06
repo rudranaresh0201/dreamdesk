@@ -23,7 +23,7 @@ from .goals import GoalSet, goal_key
 from .wm_data import load
 from .wm_eval import App, delta_f1
 
-MAX_STEPS = 10
+MAX_STEPS = int(__import__('os').environ.get('MAX_STEPS', '10'))  # 10 everywhere except the long-task test
 
 
 def screen_actions(app, screen, blocked, words):

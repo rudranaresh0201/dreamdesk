@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><title>Contacts</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+app({people:[{n:"Ana",p:"555-0101",f:false},{n:"Ben",p:"555-0102",f:true},{n:"Cleo",p:"555-0103",f:false}], sel:null, edit:false, tab:"All", np:""}, () => {
+  if (S.sel!=null) { const x=S.people[S.sel]; return `<button onclick="S.sel=null;S.edit=false;R()">All contacts</button><h1>${x.n}</h1>
+    ${S.edit?field("Phone","np")+`<button onclick="S.people[${S.sel}].p=S.np||S.people[${S.sel}].p;S.edit=false;R()">Save</button><button onclick="set('edit',false)">Cancel</button>`:
+    `<p>Phone ${x.p}</p><button onclick="S.np='';set('edit',true)">Edit</button><button onclick="S.people[${S.sel}].f=!S.people[${S.sel}].f;R()">${x.f?"Remove from favourites":"Add to favourites"}</button>`}`; }
+  return `<h1>Contacts</h1>${tabs("tab",["All","Favourites"])}<ul>${S.people.map((x,i)=>(S.tab=="All"||x.f)?`<li><button onclick="set('sel',${i})">${x.n}</button></li>`:"").join("")}</ul>`;
+});</script></body></html>

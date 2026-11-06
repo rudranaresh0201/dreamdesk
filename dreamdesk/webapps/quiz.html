@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Quiz</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const Q=[["2 + 2?",["3","4","5"],1],["Capital of France?",["Paris","Rome","Oslo"],0],["Largest planet?",["Mars","Earth","Jupiter"],2]];
+app({q:-1, pick:null, score:0, checked:false}, () => {
+  if (S.q<0) return `<h1>Quiz</h1><p>3 questions</p><button onclick="set('q',0)">Start quiz</button>`;
+  if (S.q>=Q.length) return `<h1>Finished</h1><p>Score ${S.score} of ${Q.length}</p><button onclick="S.q=-1;S.score=0;R()">Play again</button>`;
+  const [t,o,a]=Q[S.q];
+  return `<h1>Question ${S.q+1}</h1><p>${t}</p><div role="radiogroup">${o.map((x,i)=>`<label><input type="radio" name="a" ${S.pick===i?"checked":""} ${S.checked?"disabled":""} onchange="set('pick',${i})">${x}</label>`).join("")}</div>
+  ${S.checked?`<p>${S.pick===a?"Correct":"Wrong, it was "+o[a]}</p><button onclick="S.q++;S.pick=null;S.checked=false;R()">Next question</button>`:
+    `<button ${S.pick===null?"disabled":""} onclick="S.score+=S.pick===${a}?1:0;set('checked',true)">Check answer</button>`}<p>Score ${S.score}</p>`;
+});</script></body></html>

@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Player</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const L={"Morning Mix":["Sunrise","Coffee","Commute"],"Focus":["Deep","Flow"],"Party":["Jump","Lights","Late","Home"]};
+app({pl:"Morning Mix", i:0, play:false, shuf:false, rep:"Off", queue:false}, () => {
+  const s=L[S.pl];
+  return `<h1>Player</h1><nav aria-label="Playlists">${Object.keys(L).map(p=>`<button aria-current="${S.pl==p}" onclick="S.pl='${p}';S.i=0;S.play=false;R()">${p}</button>`).join("")}</nav>
+  <p>${S.play?"Playing":"Paused"}: ${s[S.i]} (${S.i+1}/${s.length})</p>
+  <button onclick="set('i',(S.i-1+L[S.pl].length)%L[S.pl].length)">Previous track</button><button onclick="tog('play')">${S.play?"Pause":"Play"}</button><button onclick="set('i',(S.i+1)%L[S.pl].length)">Next track</button>
+  <button aria-pressed="${S.shuf}" onclick="tog('shuf')">Shuffle</button><button onclick="set('rep',{Off:'All',All:'One',One:'Off'}[S.rep])">Repeat ${S.rep}</button><button onclick="tog('queue')">${S.queue?"Hide":"Show"} queue</button>
+  ${S.queue?`<ol aria-label="Queue">${s.map((t,k)=>`<li><button onclick="S.i=${k};S.play=true;R()">${t}</button></li>`).join("")}</ol>`:""}`;
+});</script></body></html>

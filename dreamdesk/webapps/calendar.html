@@ -1,0 +1,12 @@
+<!doctype html><html lang="en"><head><title>Calendar</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const M=["January","February","March","April"];
+app({m:0, view:"Month", sel:null, ev:{"0-3":["Dentist"],"1-14":["Party"]}, dlg:null, t:""}, () => {
+  const days=[...Array(28).keys()].map(d=>d+1), key=d=>`${S.m}-${d}`;
+  const grid=S.view=="Month"?`<table aria-label="${M[S.m]}"><tr>${days.map(d=>`<td><button aria-pressed="${S.sel==d}" onclick="set('sel',${d})">${d}${(S.ev[key(d)]||[]).length?" •":""}</button></td>`).join("")}</tr></table>`:
+    `<ul>${Object.entries(S.ev).filter(([k])=>k.startsWith(S.m+"-")).map(([k,v])=>`<li>${M[S.m]} ${k.split("-")[1]}: ${v.join(", ")}</li>`).join("")||"<li>No events</li>"}</ul>`;
+  return `<h1>Calendar</h1><button onclick="set('m',Math.max(0,S.m-1))">Previous month</button><h2>${M[S.m]}</h2><button onclick="set('m',Math.min(3,S.m+1))">Next month</button>
+  ${tabs("view",["Month","Agenda"])}${grid}
+  ${S.sel?`<p>Selected ${M[S.m]} ${S.sel}: ${(S.ev[key(S.sel)]||["nothing"]).join(", ")}</p><button onclick="set('dlg','new')">Add event</button>`:""}
+  ${S.dlg?dialog("New event",field("Event name","t")+`<button onclick="(S.ev['${S.m}-${S.sel}']=S.ev['${S.m}-${S.sel}']||[]).push(S.t||'Event');S.t='';S.dlg=null;R()">Save event</button>`):""}`;
+});</script></body></html>

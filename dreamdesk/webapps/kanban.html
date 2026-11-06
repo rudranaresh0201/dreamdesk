@@ -1,0 +1,8 @@
+<!doctype html><html lang="en"><head><title>Board</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const COLS=["To do","Doing","Done"];
+app({cards:[{t:"Design",c:0},{t:"Build",c:0},{t:"Test",c:1}], open:null, dlg:null, n:""}, () => {
+  const card=(x,i)=>`<li><button onclick="set('open',${i})">${x.t}</button>${S.open===i?`<div role="group" aria-label="Move ${x.t}">${x.c>0?`<button onclick="S.cards[${i}].c--;S.open=null;R()">Move left</button>`:""}${x.c<2?`<button onclick="S.cards[${i}].c++;S.open=null;R()">Move right</button>`:""}<button onclick="S.cards.splice(${i},1);S.open=null;R()">Archive</button></div>`:""}</li>`;
+  return `<h1>Board</h1><div style="display:flex;gap:20px">${COLS.map((c,k)=>`<section aria-label="${c}"><h2>${c} (${S.cards.filter(x=>x.c==k).length})</h2><ul>${S.cards.map((x,i)=>x.c==k?card(x,i):"").join("")}</ul></section>`).join("")}</div>
+  <button onclick="set('dlg','add')">Add card</button>${S.dlg?dialog("New card",field("Card title","n")+`<button onclick="S.cards.push({t:S.n||'Card',c:0});S.n='';S.dlg=null;R()">Create</button>`):""}`;
+});</script></body></html>

@@ -76,6 +76,31 @@ def pick_split_goals(goal_app, known_app, split, n, horizon=10, seed=0):
     return [g for k in ("seen", "combo") for g in rng.sample(out[k], min(n, len(out[k])))]
 
 
+def pick_deep_goals(goal_app, known_app, split, n, horizon=30, near=5, seed=0):
+    """Long-task test (experiments/long_prereg.md): "deep" goals. A goal is deep when no recorded episode of the
+    app, in any split, showed all its elements within `near` steps of a fresh start; it is reached in `split`
+    within `horizon` steps. Goals with an element the agent never saw while exploring are left out (as in
+    pick_split_goals); the rest are tagged seen/combo against the explored screens. Up to n, sampled at random."""
+    from .goals import keys_of
+    close = []
+    for sp in goal_app.transitions:
+        for ep in goal_app.episodes(sp):
+            if ep and ep[0][8] == 0:
+                close += [keys_of(goal_app, goal_app.screens[ep[0][0]])]
+                close += [keys_of(goal_app, goal_app.screens[t[4]]) for t in ep[:near]]
+    ids = {t[0] for t in known_app.transitions["train"]} | {t[4] for t in known_app.transitions["train"]}
+    screens = [{goal_key(known_app.tokens[i]) for i in known_app.screens[s]} for s in ids]
+    bank = set().union(*screens)
+    out = []
+    for g in GoalSet(goal_app, split, horizon=horizon).goals:
+        keys = set(g["keys"])
+        if g["steps"] <= near or not keys <= bank or any(keys <= s for s in close):
+            continue
+        out.append(dict(g, kind="seen" if any(keys <= s for s in screens) else "combo"))
+    rng = random.Random(f"{goal_app.name}-{split}-deep-{seed}")
+    return rng.sample(out, min(n, len(out)))
+
+
 def real_keys(elements):
     return {goal_key(token(r)) for r in snapshot(elements, detail=True)}
 
@@ -305,7 +330,7 @@ def main():
     ap.add_argument("--name", default=None, help="label for the output file (default: the agent)")
     ap.add_argument("--split", default="val")
     ap.add_argument("--goals", type=int, default=20)
-    ap.add_argument("--rule", default="new", choices=["new", "pilot", "split"])
+    ap.add_argument("--rule", default="new", choices=["new", "pilot", "split", "deep"])
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--data", default="data/wm", help="the agent's knowledge: map, dream bank and starts")
     ap.add_argument("--goal-data", default=None, help="where goals come from (default: --data); Stage 5 keeps goals "
@@ -318,7 +343,9 @@ def main():
     spec = APPS[args.app]
     app = App(load(Path(args.data) / f"{args.app}.pkl"))
     goal_app = App(load(Path(args.goal_data) / f"{args.app}.pkl")) if args.goal_data else app
-    if args.rule == "split":
+    if args.rule == "deep":
+        goals = pick_deep_goals(goal_app, app, args.split, args.goals)
+    elif args.rule == "split":
         goals = pick_split_goals(goal_app, app, args.split, args.goals)
         if args.kind:
             goals = [g for g in goals if g["kind"] == args.kind]
@@ -326,7 +353,7 @@ def main():
         goals = pick_goals(goal_app, args.split, args.goals, rule=args.rule)
     rng = random.Random(f"{args.app}-{args.agent}-{args.seed}")
     agent = AGENTS[args.agent](app, rng, ckpt=args.ckpt, members=args.members, data=args.data)
-    env = DeskEnv(spec.backend(), max_steps=MAX_STEPS, blocked_names=spec.blocked_names(), words=spec.words)
+    env = DeskEnv(spec.backend(), max_steps=MAX_STEPS, blocked_names=spec.blocked_names(), words=spec.words, **(spec.env_kw()))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     path = out / f"{args.app}_{args.name or args.agent}_{args.split}_seed{args.seed}.jsonl"

@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Converter</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const U={Length:{m:1,km:1000,ft:0.3048},Weight:{kg:1,g:0.001,lb:0.4536},Time:{s:1,min:60,h:3600}};
+app({kind:"Length", from:"m", to:"km", v:"1", out:null, hist:[]}, () => {
+  const u=Object.keys(U[S.kind]);
+  const sel=(k)=>`<select aria-label="${k=="from"?"From unit":"To unit"}" onchange="set('${k}',this.value)">${u.map(x=>`<option ${S[k]==x?"selected":""}>${x}</option>`).join("")}</select>`;
+  return `<h1>Converter</h1>${tabs("kind",Object.keys(U)).replace(/set\('kind','(\w+)'\)/g,"S.kind='$1';S.from=Object.keys(U['$1'])[0];S.to=Object.keys(U['$1'])[1];S.out=null;R()")}
+  ${field("Value","v")}${sel("from")} to ${sel("to")}<button onclick="const r=(+S.v||0)*U[S.kind][S.from]/U[S.kind][S.to];S.out=r.toPrecision(4);S.hist.unshift(S.v+' '+S.from+' = '+S.out+' '+S.to);R()">Convert</button>
+  <button onclick="const a=S.from;S.from=S.to;S.to=a;S.out=null;R()">Swap units</button>${S.out!==null?`<p>Result ${S.out} ${S.to}</p>`:""}
+  ${S.hist.length?`<h2>History</h2><ul>${S.hist.slice(0,3).map(h=>`<li>${h}</li>`).join("")}</ul><button onclick="set('hist',[])">Clear history</button>`:""}`;
+});</script></body></html>

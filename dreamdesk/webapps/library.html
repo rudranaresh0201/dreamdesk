@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><title>Library</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+const B={Dune:"Sci-fi",Emma:"Classic",Dracula:"Horror","Neuromancer":"Sci-fi","Jane Eyre":"Classic"};
+app({g:"All", sel:null, loans:[], hold:{}, tab:"Catalog", sort:false}, () => {
+  if (S.tab=="My loans") return `<h1>Library</h1>${tabs("tab",["Catalog","My loans"])}<ul>${S.loans.map(b=>`<li>${b} <button onclick="S.loans=S.loans.filter(x=>x!='${b}');R()">Return ${b}</button></li>`).join("")||"<li>No loans</li>"}</ul>`;
+  let names=Object.keys(B).filter(b=>S.g=="All"||B[b]==S.g); if (S.sort) names.sort();
+  return `<h1>Library</h1>${tabs("tab",["Catalog","My loans"])}${tabs("g",["All","Sci-fi","Classic","Horror"])}<button onclick="tog('sort')">${S.sort?"Original order":"Sort A to Z"}</button>
+  <ul>${names.map(b=>`<li><button onclick="set('sel','${b}')">${b}</button></li>`).join("")}</ul>
+  ${S.sel?`<section aria-label="Book"><h2>${S.sel}</h2><p>${B[S.sel]}</p>${S.loans.includes(S.sel)?"<p>On loan to you</p>":`<button onclick="S.loans.push(S.sel);R()">Borrow</button>`}<button onclick="S.hold[S.sel]=!S.hold[S.sel];R()">${S.hold[S.sel]?"Cancel hold":"Place hold"}</button></section>`:""}`;
+});</script></body></html>

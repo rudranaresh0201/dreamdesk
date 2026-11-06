@@ -12,10 +12,10 @@ APPS="${APPS:-disk-usage files logs}"
 mkdir -p "$OUT/logs" "$OUT/interrupted"
 JOBS=()
 for seed in $SEEDS; do for app in $APPS; do
-  [ "${GOAL_RULE:-pilot}" = split ] || JOBS+=("$app random random - $seed")
+  case "${GOAL_RULE:-pilot}" in split|deep) ;; *) JOBS+=("$app random random - $seed");; esac
   for b in $BUDGETS; do
     # rule "split": goals depend on what the first B clicks saw, so Random gets its own run per budget
-    [ "${GOAL_RULE:-pilot}" = split ] && JOBS+=("$app random random-B$b $b $seed")
+    case "${GOAL_RULE:-pilot}" in split|deep) JOBS+=("$app random random-B$b $b $seed");; esac
     JOBS+=("$app graph graph-B$b $b $seed" "$app planner planner-B$b $b $seed")
   done
 done; done
@@ -30,11 +30,11 @@ run_one() {
     [ "$agent" = random ] || extra="--members runs/ft/finetune_${app}_B${b}_seed0.pt runs/ft/finetune_${app}_B${b}_seed1.pt runs/ft/finetune_${app}_B${b}_seed2.pt"
   fi
   nice -n 10 timeout 2h bash scripts/sandbox.sh --out "$OUT" /usr/bin/bash -c \
-    "PLANNER_DEPTH=${PLANNER_DEPTH:-5} .venv/bin/python -u -W ignore -m dreamdesk.real_eval --app $app --agent $agent --name $name $extra --data $data --goal-data ${GOAL_DATA:-data/wm_final} --seed $seed --rule ${GOAL_RULE:-pilot} --split $SPLIT --goals $GOALS --out $OUT 2>&1" \
+    "MAX_STEPS=${MAX_STEPS:-10} PLANNER_DEPTH=${PLANNER_DEPTH:-5} .venv/bin/python -u -W ignore -m dreamdesk.real_eval --app $app --agent $agent --name $name $extra --data $data --goal-data ${GOAL_DATA:-data/wm_final} --seed $seed --rule ${GOAL_RULE:-pilot} --split $SPLIT --goals $GOALS --out $OUT 2>&1" \
     2>&1 | grep -v dbind | grep -v '^$' > "$OUT/logs/$base.log"
   echo "$(date +%H:%M) $base: $(tail -1 "$OUT/logs/$base.log")"
 }
 export -f run_one
-export OUT SPLIT GOALS GOAL_RULE PLANNER_DEPTH GOAL_DATA BUDGET_DIR
+export OUT SPLIT GOALS GOAL_RULE MAX_STEPS PLANNER_DEPTH GOAL_DATA BUDGET_DIR
 printf '%s\n' "${JOBS[@]}" | xargs -P "$PARALLEL" -L 1 bash -c 'run_one "$0" "$1" "$2" "$3" "$4"'
 echo "all stage 5 task runs finished"

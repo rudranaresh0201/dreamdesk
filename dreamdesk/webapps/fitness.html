@@ -1,0 +1,11 @@
+<!doctype html><html lang="en"><head><title>Workouts</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+app({log:[{a:"Run",m:30}], a:"Run", m:20, tab:"Today", goal:150, dlg:null}, () => {
+  const tot=S.log.reduce((s,x)=>s+x.m,0);
+  let b="";
+  if (S.tab=="Today") b=`<p>${tot} of ${S.goal} minutes</p><progress aria-label="Weekly goal" value="${tot}" max="${S.goal}"></progress>${["Run","Swim","Bike","Yoga"].map(a=>`<button aria-pressed="${S.a==a}" onclick="set('a','${a}')">${a}</button>`).join("")}
+    <p>${S.m} minutes</p><button onclick="set('m',Math.max(5,S.m-5))">Less time</button><button onclick="set('m',Math.min(90,S.m+5))">More time</button><button onclick="S.log.push({a:S.a,m:S.m});R()">Log workout</button>`;
+  if (S.tab=="History") b=`<ul>${S.log.map((x,i)=>`<li>${x.a} ${x.m} min <button onclick="S.log.splice(${i},1);R()">Delete ${x.a} ${x.m}</button></li>`).join("")}</ul>`;
+  if (S.tab=="Goal") b=`<p>Weekly goal ${S.goal} minutes</p><button onclick="set('dlg','g')">Change goal</button>`;
+  return `<h1>Workouts</h1>${tabs("tab",["Today","History","Goal"])}${b}${S.dlg?dialog("Weekly goal",[100,150,200].map(g=>`<button onclick="S.goal=${g};S.dlg=null;R()">${g} minutes</button>`).join("")):""}`;
+});</script></body></html>

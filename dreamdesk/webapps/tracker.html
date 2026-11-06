@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><head><title>Issues</title><meta charset="utf-8"><style>body{font:15px sans-serif;margin:16px}nav{display:flex;gap:6px;margin:8px 0}[role=dialog]{border:2px solid #333;padding:12px;margin:12px 0}[role=menu]{display:flex;flex-direction:column;border:1px solid #999;width:200px}li{margin:4px 0}</style><script src="_lib.js"></script>
+</head><body><main id="app"></main><script>
+app({is:[{t:"Login fails",s:"Open",p:"High"},{t:"Typo on page",s:"Open",p:"Low"},{t:"Slow search",s:"Closed",p:"Medium"}], f:"Open", sel:null, m:false}, () => {
+  if (S.sel!=null) { const x=S.is[S.sel]; return `<button onclick="set('sel',null)">All issues</button><h1>${x.t}</h1><p>Status ${x.s}, priority ${x.p}</p>
+    <button onclick="S.is[${S.sel}].s=S.is[${S.sel}].s=='Open'?'Closed':'Open';R()">${x.s=="Open"?"Close issue":"Reopen issue"}</button>
+    ${menu("m","Set priority",["Low","Medium","High"].map(p=>[p,`S.is[${S.sel}].p='${p}'`]))}`; }
+  return `<h1>Issues</h1>${tabs("f",["Open","Closed","All"])}<ul>${S.is.map((x,i)=>(S.f=="All"||x.s==S.f)?`<li><button onclick="set('sel',${i})">${x.t} (${x.p})</button></li>`:"").join("")}</ul>
+  <button onclick="S.is.push({t:'New issue '+S.is.length,s:'Open',p:'Medium'});R()">New issue</button>`;
+});</script></body></html>
