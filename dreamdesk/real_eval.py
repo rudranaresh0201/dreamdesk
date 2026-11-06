@@ -210,12 +210,13 @@ class PlannerAgent:
     real screen matches the imagined one (same goal keys showing and Jaccard >= MATCH), else redone."""
     MATCH = 0.8
 
-    def __init__(self, app, rng, **_):
+    def __init__(self, app, rng, members=None, data="data/wm", **_):
         from .dream import Dream
         from .world_model import Neural
         th = json.load(open("runs/wm/thresholds.json"))
-        wm = Neural([f"runs/wm/member_seed{k}.pt" for k in range(5)], "data/wm", th["vanish"], th["appear"], 2)
-        self.dream = Dream(wm, app.name)
+        members = members or [f"runs/wm/member_seed{k}.pt" for k in range(5)]
+        wm = Neural(members, data, th["vanish"], th["appear"], 2)
+        self.dream = Dream(wm, app.name, data)
         self.vocab = {t: i for i, t in enumerate(self.dream.app.tokens)}
         self.rng = rng
         self.goal, self.path, self.imagined = None, [], []
@@ -258,7 +259,7 @@ class HybridAgent:
     goal element, otherwise the dream planner."""
 
     def __init__(self, app, rng, **kw):
-        self.graph, self.planner = GraphAgent(app, rng), PlannerAgent(app, rng)
+        self.graph, self.planner = GraphAgent(app, rng), PlannerAgent(app, rng, **kw)
         self.goal, self.use = None, None
 
     def act(self, elements, actions, goal):
@@ -283,15 +284,19 @@ def main():
     ap.add_argument("--goals", type=int, default=20)
     ap.add_argument("--rule", default="new", choices=["new", "pilot"])
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--data", default="data/wm")
+    ap.add_argument("--data", default="data/wm", help="the agent's knowledge: map, dream bank and starts")
+    ap.add_argument("--goal-data", default=None, help="where goals come from (default: --data); Stage 5 keeps goals "
+                    "fixed across exploration budgets by taking them from the full data")
+    ap.add_argument("--members", nargs="+", default=None, help="planner: world-model members (default: Stage 3)")
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
 
     spec = APPS[args.app]
     app = App(load(Path(args.data) / f"{args.app}.pkl"))
-    goals = pick_goals(app, args.split, args.goals, rule=args.rule)
+    goal_app = App(load(Path(args.goal_data) / f"{args.app}.pkl")) if args.goal_data else app
+    goals = pick_goals(goal_app, args.split, args.goals, rule=args.rule)
     rng = random.Random(f"{args.app}-{args.agent}-{args.seed}")
-    agent = AGENTS[args.agent](app, rng, ckpt=args.ckpt)
+    agent = AGENTS[args.agent](app, rng, ckpt=args.ckpt, members=args.members, data=args.data)
     env = DeskEnv(spec.backend(), max_steps=MAX_STEPS, blocked_names=spec.blocked_names(), words=spec.words)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
