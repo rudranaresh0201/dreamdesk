@@ -218,6 +218,8 @@ def batch_loss(model, p, ts):
 
 
 def train(args):
+    if getattr(args, "device", "cpu") != "cpu":
+        torch.set_default_device(args.device)  # every tensor below is made on the GPU; checkpoints load anywhere
     torch.manual_seed(args.seed)
     random.seed(args.seed)
     torch.set_num_threads(args.threads)
@@ -362,6 +364,7 @@ def main():
     tr.add_argument("--threads", type=int, default=8)
     tr.add_argument("--limit", type=int, default=0, help="batches per epoch, for a speed check")
     tr.add_argument("--resume", action="store_true", help="continue after the last saved epoch")
+    tr.add_argument("--device", default="cpu", help="cpu or cuda (Kaggle)")
     ev = sub.add_parser("eval")
     ev.add_argument("--data", default="data/wm")
     ev.add_argument("--members", nargs="+", required=True)

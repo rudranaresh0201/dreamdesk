@@ -47,6 +47,12 @@ APPS = {s.name: s for s in [
     _spec("font-viewer", ["gnome-font-viewer"], "font-viewer"),
     _spec("image-viewer", ["loupe"], "loupe", min_elements=10),
     _spec("logs", ["gnome-logs"], "logs"),
+    # LibreOffice Math (held out). Macros, extensions, online help/feedback, printing and quitting are blocked.
+    _spec("math", ["libreoffice26.8", "--norestore", "--nologo", "--math"], "soffice", min_elements=50, start_timeout=60,
+          blocked={"Exit LibreOffice", "Close Document", "Macros", "Run Macro...", "Edit Macros...", "Organize Macros",
+                   "Extension Manager...", "Get Help Online", "Send Feedback...", "Get Involved", "Donate to LibreOffice",
+                   "Check for Updates...", "What's New", "User Guides", "Restart in Safe Mode...", "Print...",
+                   "Print Directly", "LibreOffice Help", "Show Crash Reports"}),
     _spec("resources", ["resources"], "resources", blocked={"End App", "Kill App", "Halt App", "Stop App"}, noisy=True),
 ]}
 
