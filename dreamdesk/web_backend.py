@@ -29,6 +29,7 @@ ROLES = {
     "paragraph": "paragraph",
 }
 PRESSABLE = {"button", "link", "checkbox", "radio", "menuitem", "tab", "switch", "combobox", "treeitem"}
+TEXT_FIELDS = {"textbox", "searchbox", "combobox"}
 SKIP = {"InlineTextBox", "ListMarker", "none", "presentation"}
 
 
@@ -127,7 +128,10 @@ def to_elements(nodes):
             name = _value(node, "name")
             text = _value(node, "value") or (name if role in ("StaticText", "LabelText") else "")
             # Web boxes need a call per element; left empty until the playable dream needs them.
-            out.append(Element(path, ROLES.get(role, role), name, text, role in PRESSABLE, node, _states(node)))
+            states = _states(node)
+            if role not in TEXT_FIELDS:  # text inside a field says "editable" too, but only the field takes typing
+                states = states - {"editable"}
+            out.append(Element(path, ROLES.get(role, role), name, text, role in PRESSABLE, node, states))
         index = 0
         for child in node.get("childIds", []):
             if child in by_id:
