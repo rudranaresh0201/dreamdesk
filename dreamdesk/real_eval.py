@@ -204,7 +204,73 @@ class AchieverAgent:
         return real[k]
 
 
-AGENTS = {"random": RandomAgent, "graph": GraphAgent, "achiever": AchieverAgent}
+class PlannerAgent:
+    """Plans inside the dream (planner.plan) from the real screen. Real elements are mapped to the training
+    vocabulary; elements the world model never saw are left out of its view. The plan is followed while each
+    real screen matches the imagined one (same goal keys showing and Jaccard >= MATCH), else redone."""
+    MATCH = 0.8
+
+    def __init__(self, app, rng, **_):
+        from .dream import Dream
+        from .world_model import Neural
+        th = json.load(open("runs/wm/thresholds.json"))
+        wm = Neural([f"runs/wm/member_seed{k}.pt" for k in range(5)], "data/wm", th["vanish"], th["appear"], 2)
+        self.dream = Dream(wm, app.name)
+        self.vocab = {t: i for i, t in enumerate(self.dream.app.tokens)}
+        self.rng = rng
+        self.goal, self.path, self.imagined = None, [], []
+
+    def screen(self, elements):
+        rows = snapshot(elements, detail=True)
+        ids = [self.vocab.get(token(r)) for r in rows]
+        return frozenset(i for i in ids if i is not None), {id(e): i for e, i in zip(elements, ids)}
+
+    def find(self, step, actions, by_elem):
+        for a in actions:
+            if a.verb == step[0] and by_elem.get(id(a.element)) == step[1] and (a.text or "") == (step[2] or ""):
+                return a
+        return None
+
+    def act(self, elements, actions, goal):
+        from .planner import plan
+        keys = set(goal["keys"])
+        screen, by_elem = self.screen(elements)
+        if self.goal is not goal:
+            self.goal, self.path, self.imagined, self.steps = goal, [], [], 0
+        elif self.imagined:
+            want = self.dream.keys(self.imagined[0])
+            have = self.dream.keys(screen)
+            ok = (want & keys) == (have & keys) and len(want & have) / max(1, len(want | have)) >= self.MATCH
+            self.path, self.imagined = (self.path[1:], self.imagined[1:]) if ok else ([], [])
+        self.steps += 1
+        a = self.find(self.path[0], actions, by_elem) if self.path else None
+        if a is None:
+            self.path, self.imagined = plan(self.dream, screen, keys, min(5, MAX_STEPS - self.steps + 1))
+            a = self.find(self.path[0], actions, by_elem) if self.path else None
+        if a is None:
+            self.path, self.imagined = [], []
+            return self.rng.choice(actions)
+        return a
+
+
+class HybridAgent:
+    """Map where you've been, dream where you haven't: the Graph's plan when its map has a screen showing every
+    goal element, otherwise the dream planner."""
+
+    def __init__(self, app, rng, **kw):
+        self.graph, self.planner = GraphAgent(app, rng), PlannerAgent(app, rng)
+        self.goal, self.use = None, None
+
+    def act(self, elements, actions, goal):
+        if self.goal is not goal:
+            self.goal = goal
+            g = set(goal["keys"])
+            self.use = self.graph if any(g <= k for k in self.graph.keys) else self.planner
+        return self.use.act(elements, actions, goal)
+
+
+AGENTS = {"random": RandomAgent, "graph": GraphAgent, "achiever": AchieverAgent, "planner": PlannerAgent,
+          "hybrid": HybridAgent}
 
 
 def main():
