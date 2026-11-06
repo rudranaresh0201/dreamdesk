@@ -197,6 +197,26 @@ def token_batches(p, ts):
     return out
 
 
+def batch_loss(model, p, ts):
+    """Weighted cross-entropy on which elements vanish and which bank elements appear."""
+    rows, mask, vanish, appear = run_model(model, p, [p.ordered[t[0]] for t in ts], ts)
+    y_vanish = torch.zeros_like(vanish)
+    y_appear = torch.zeros_like(appear)
+    appear_mask = torch.ones_like(appear, dtype=torch.bool)
+    for b, (r, t) in enumerate(zip(rows, ts)):
+        after = p.app.screens[t[4]]
+        for j, e in enumerate(r):
+            y_vanish[b, j] = float(e not in after)
+            if e in p.bank_pos:
+                appear_mask[b, p.bank_pos[e]] = False  # already on screen: can't appear
+        for e in after - set(r):
+            if e in p.bank_pos:
+                y_appear[b, p.bank_pos[e]] = 1.0
+    lv = F.binary_cross_entropy_with_logits(vanish[mask], y_vanish[mask], pos_weight=torch.tensor(CONFIG["pos_weight"]))
+    la = F.binary_cross_entropy_with_logits(appear[appear_mask], y_appear[appear_mask], pos_weight=torch.tensor(CONFIG["pos_weight"]))
+    return lv + la
+
+
 def train(args):
     torch.manual_seed(args.seed)
     random.seed(args.seed)
@@ -243,22 +263,7 @@ def train(args):
             lr = CONFIG["lr"] * min(1.0, (step + 1) / 200) * 0.5 * (1 + math.cos(math.pi * min(step, total) / total))
             for g in opt.param_groups:
                 g["lr"] = lr
-            rows, mask, vanish, appear = run_model(model, p, [p.ordered[t[0]] for t in ts], ts)
-            y_vanish = torch.zeros_like(vanish)
-            y_appear = torch.zeros_like(appear)
-            appear_mask = torch.ones_like(appear, dtype=torch.bool)
-            for b, (r, t) in enumerate(zip(rows, ts)):
-                after = p.app.screens[t[4]]
-                for j, e in enumerate(r):
-                    y_vanish[b, j] = float(e not in after)
-                    if e in p.bank_pos:
-                        appear_mask[b, p.bank_pos[e]] = False  # already on screen: can't appear
-                for e in after - set(r):
-                    if e in p.bank_pos:
-                        y_appear[b, p.bank_pos[e]] = 1.0
-            lv = F.binary_cross_entropy_with_logits(vanish[mask], y_vanish[mask], pos_weight=torch.tensor(CONFIG["pos_weight"]))
-            la = F.binary_cross_entropy_with_logits(appear[appear_mask], y_appear[appear_mask], pos_weight=torch.tensor(CONFIG["pos_weight"]))
-            loss = lv + la
+            loss = batch_loss(model, p, ts)
             opt.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
