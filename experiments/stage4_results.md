@@ -105,7 +105,7 @@ The pooled gap is small, but per app it ranges from −19 to +20. In 3 apps the 
 ## Caveats
 
 - **Goals are navigation goals** (bring up to 3 given elements onto the screen within 10 steps), not full tasks with values.
-- **Graph had 1 run.** Its only randomness is the fallback action, so seeds matter less, but its interval reflects goal variation only.
+- **Graph had 1 run, and the real apps aren't fully repeatable.** Found after the test (val, Calculator): the same Graph agent got 10, 19 and 10 of 20 goals with seeds 0, 1 and 2. On goals that differed, it took the *same* actions and the app showed different elements (timing effects). So a single run's per-app numbers are noisy, and the Graph's interval reflects goal variation only. Later tests use 3 Graph seeds.
 - **"Practised" means as a dreamed goal.** The 73 practised goals were made up by random play in the dream and happened to match test goals. They're mostly short, common goals, which also makes them easier for Random (63.9%).
 - **Seed 2 trained on a GPU** and seeds 0–1 on a CPU. Results aren't bit-identical across devices. Pooled real success per seed: Dream 39.1%, 41.2% (laptop) and 36.7% (Kaggle); Penalty 34.7%, 37.4% (laptop) and 37.4% (Kaggle). Kaggle's Dream seed is the lowest, 2.4 points below the lower laptop seed; its Penalty seed ties the higher one. With 3 seeds, a device effect can't be told apart from seed noise.
 - **The training budget was halved** (Deviation 1). Training success had nearly flattened by iteration 1,000, so more iterations probably wouldn't change the never-practised result much. That isn't tested.
