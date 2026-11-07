@@ -40,4 +40,6 @@ prior that has seen **more apps** do better still?
 - **S2 is uncertain.** Web training apps may help desktop apps little, because their elements and screens look different.
 
 ## Deviations
-(none yet)
+- 2026-11-07: **LibreOffice Math dropped** from the held-out apps. Its recordings fail: after one partial run (180/500 steps) it never appears in the accessibility tree (`runs/night_scale.log`). Held-out apps are now 8 (3 desktop, 5 web). No score had been seen.
+- 2026-11-07: **Device.** The first Kaggle run used the GPU with 3 trainings sharing it; after 30 min no training had finished one epoch (a lone prior7 epoch should take ~3 min), so the jobs were thrashing the GPU. Stopped and rerun on CPU, 4 at a time. Same code, recipe and seeds; no results had been seen.
+- 2026-11-07: **Last epoch of P23 seed 2 on the laptop.** Kaggle version 1 stopped at its 11.25 h limit with 8 of 9 priors done and P23 seed 2 after epoch 7 of 8. That last epoch is resumed exactly (`--resume`, saved optimizer and random state) on the laptop CPU, same code, before any prior is fine-tuned or scored.

@@ -66,7 +66,7 @@ def run(args):
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     th = json.load(open("runs/wm/thresholds.json"))
-    jobs = [(app, b, arm, s) for b in args.budgets for app in args.apps for arm in ARMS for s in args.seeds]
+    jobs = [(app, b, arm, s) for b in args.budgets for app in args.apps for arm in args.arms for s in args.seeds]
     for k, (app, b, arm, s) in enumerate(jobs):
         name = f"{arm}_{app}_B{b}_seed{s}"
         if (out / f"{name}.json").exists():
@@ -129,6 +129,7 @@ def main():
     r.add_argument("--apps", nargs="+", default=HELD_OUT)
     r.add_argument("--budgets", nargs="+", type=int, default=BUDGETS)
     r.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])
+    r.add_argument("--arms", nargs="+", default=ARMS, choices=ARMS)
     r.add_argument("--steps", type=int, default=STEPS)
     r.add_argument("--prior", default="runs/wm7/member_seed0.pt")
     r.add_argument("--budget-dir", default="data/budget")
